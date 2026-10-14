@@ -11,9 +11,20 @@ from deepeval.rubric_excel import (
     write_rubric_excel_report,
     write_rubric_excel_template,
 )
-from deepeval.rubric_ops import validate_score_file
+from deepeval.rubric_ops import convert_scores, validate_score_file
 
 app = typer.Typer(help="Validate and compare existing rubric scores locally.")
+
+
+@app.command("convert")
+def convert_command(source: Path, output: Path, sheet: Optional[str] = None):  # noqa: FA100
+    """Convert validated scores between CSV and XLSX without rescoring."""
+    try:
+        count = convert_scores(source, output, sheet=sheet)
+        typer.echo(f"Wrote {count} score rows to {output}")
+    except (RubricValidationError, OSError) as exc:
+        typer.echo(f"Score conversion failed: {exc}", err=True)
+        raise typer.Exit(code=2) from exc
 
 
 @app.command("validate")

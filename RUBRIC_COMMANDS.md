@@ -19,3 +19,11 @@ No scores or model judgments are generated.
 Checks the exact key set, criterion wording, weight and maximum score against
 an independently maintained definition CSV before comparison. Notes need not
 match. Numeric equivalents (1 and 1.0) match; changed standards fail with exit 2.
+
+## Convert score files
+
+`deepeval rubric convert scores.csv scores.xlsx`
+
+CSV/XLSX conversion validates every row first; XLSX IDs and text are literal.
+Use `--sheet Scores` for multi-sheet inputs. Raw CSV is intended for program
+interchange; use XLSX for formula-safe spreadsheet viewing. Existing files fail.

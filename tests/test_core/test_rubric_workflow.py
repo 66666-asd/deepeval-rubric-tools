@@ -11,8 +11,24 @@ from deepeval.rubric import (
     REQUIRED_COLUMNS,
     RubricValidationError,
     compare_rubric_file,
+    load_rubric_scores,
 )
-from deepeval.rubric_ops import validate_score_file
+from deepeval.rubric_ops import convert_scores, validate_score_file
+
+
+def test_conversion_roundtrip_and_file_protection(scores, tmp_path):
+    xlsx = tmp_path / "scores.xlsx"
+    csv_path = tmp_path / "roundtrip.csv"
+    assert convert_scores(scores, xlsx) == 3
+    result = CliRunner().invoke(
+        app, ["rubric", "convert", str(xlsx), str(csv_path)]
+    )
+    assert result.exit_code == 0, result.output
+    assert load_rubric_scores(scores) == load_rubric_scores(csv_path)
+    with pytest.raises(FileExistsError):
+        convert_scores(scores, xlsx)
+    with pytest.raises(RubricValidationError):
+        convert_scores(scores, tmp_path / "unsupported.xls")
 
 
 def make_csv(path, rows, headers=(*REQUIRED_COLUMNS, "notes")):

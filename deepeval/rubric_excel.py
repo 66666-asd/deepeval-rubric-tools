@@ -11,6 +11,7 @@ from deepeval.rubric import (
     RubricValidationError,
     load_rubric_template_csv,
 )
+from deepeval.rubric_io import write_new_bytes
 
 _INVALID_XML_TEXT = re.compile(
     r"[\x00-\x08\x0b\x0c\x0e-\x1f\ud800-\udfff\ufffe\uffff]"
@@ -85,8 +86,7 @@ def _save_new_workbook(workbook, output):
     buffer = BytesIO()
     try:
         workbook.save(buffer)
-        with output.open("xb") as target:
-            target.write(buffer.getbuffer())
+        write_new_bytes(output, buffer.getvalue())
     finally:
         buffer.close()
         workbook.close()

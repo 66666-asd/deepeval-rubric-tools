@@ -1,5 +1,12 @@
 # Local rubric workflow commands
 
+## Output integrity
+
+Generated files are serialized and flushed to a sibling temporary file before
+atomic hard-link publication. Existing files are never replaced, and temporary
+files are cleaned on failure. Output directories must exist and support hard
+links (for example NTFS/ext4); unsupported filesystems fail with an I/O error.
+
 ## JSON Lines score interchange
 
 `deepeval rubric convert scores.csv scores.jsonl`

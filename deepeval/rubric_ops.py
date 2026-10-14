@@ -13,6 +13,7 @@ from deepeval.rubric import (
     load_rubric_scores,
     validate_rubric_manifest,
 )
+from deepeval.rubric_io import write_new_bytes
 
 
 def write_score_rows(rows, output):
@@ -26,8 +27,7 @@ def write_score_rows(rows, output):
             json.dumps(asdict(row), ensure_ascii=False, allow_nan=False) + "\n"
             for row in rows
         ).encode("utf-8")
-        with output.open("xb") as target:
-            target.write(payload)
+        write_new_bytes(output, payload)
         return
     if output.suffix.lower() == ".csv":
         buffer = StringIO(newline="")
@@ -35,8 +35,7 @@ def write_score_rows(rows, output):
         writer.writeheader()
         writer.writerows(asdict(row) for row in rows)
         payload = buffer.getvalue().encode("utf-8")
-        with output.open("xb") as target:
-            target.write(payload)
+        write_new_bytes(output, payload)
     elif output.suffix.lower() == ".xlsx":
         from deepeval.rubric_excel import (
             _append_literals,

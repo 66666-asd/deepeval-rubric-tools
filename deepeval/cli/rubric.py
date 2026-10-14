@@ -286,8 +286,9 @@ def compare_command(
             if output is None:
                 typer.echo(payload)
             else:
-                with output.open("x", encoding="utf-8", newline="\n") as target:
-                    target.write(payload + "\n")
+                from deepeval.rubric_io import write_new_bytes
+
+                write_new_bytes(output, (payload + "\n").encode("utf-8"))
         if output is not None:
             typer.echo(f"Report written to {output}")
     except (RubricValidationError, OSError) as exc:

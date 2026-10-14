@@ -3,7 +3,8 @@
 from __future__ import annotations
 
 import html
-from pathlib import Path
+
+from deepeval.rubric_io import write_new_bytes
 
 
 def write_html_report(report, output):
@@ -92,8 +93,7 @@ def write_html_report(report, output):
         + criteria
         + "<p>Summary display rounded to two decimals. JSON retains calculation precision.</p></body></html>"
     ).encode("utf-8")
-    with Path(output).open("xb") as target:
-        target.write(payload)
+    write_new_bytes(output, payload)
 
 
 def write_case_csv(report, output):
@@ -123,8 +123,7 @@ def write_case_csv(report, output):
     for case in report["cases"]:
         writer.writerow([safe(case[field]) for field in fields])
     payload = buffer.getvalue().encode("utf-8-sig")
-    with Path(output).open("xb") as target:
-        target.write(payload)
+    write_new_bytes(output, payload)
 
 
 def _markdown_cell(value):
@@ -199,5 +198,4 @@ def write_markdown_report(report, output):
         "",
     ]
     payload = "\n".join(lines).encode("utf-8")
-    with Path(output).open("xb") as target:
-        target.write(payload)
+    write_new_bytes(output, payload)

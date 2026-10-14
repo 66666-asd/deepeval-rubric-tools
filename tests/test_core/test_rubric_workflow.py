@@ -378,6 +378,27 @@ def test_jsonl_strict_records(tmp_path, bad):
         load_rubric_scores(source)
 
 
+def test_atomic_outputs_preserve_files_and_clean_temporary_paths(
+    tmp_path, monkeypatch
+):
+    from deepeval.rubric_io import write_new_bytes
+
+    output = tmp_path / "report.json"
+    write_new_bytes(output, b"complete")
+    with pytest.raises(FileExistsError):
+        write_new_bytes(output, b"replacement")
+    assert output.read_bytes() == b"complete"
+
+    def fail(*args):
+        raise OSError("simulated disk failure")
+
+    monkeypatch.setattr("deepeval.rubric_io.os.fsync", fail)
+    with pytest.raises(OSError):
+        write_new_bytes(tmp_path / "failed.json", b"partial")
+    assert not (tmp_path / "failed.json").exists()
+    assert list(tmp_path.glob(".rubric-*.tmp")) == []
+
+
 def make_csv(path, rows, headers=(*REQUIRED_COLUMNS, "notes")):
     with path.open("w", encoding="utf-8", newline="") as target:
         writer = csv.writer(target)

@@ -223,6 +223,28 @@ def test_quality_gate_boundaries_and_exit_codes(
         assert payload["completeness"] == "not_checked"
 
 
+def test_markdown_report_escapes_user_content_and_protects_output(
+    scores, tmp_path
+):
+    from deepeval.rubric_reports import write_markdown_report
+
+    report = compare_rubric_file(
+        scores, model_a="<script>|[click](url)\nsecond"
+    )
+    output = tmp_path / "report.md"
+    write_markdown_report(report, output)
+    text = output.read_text(encoding="utf-8")
+    assert "<script>" not in text
+    assert "&lt;script&gt;&#124;" in text
+    assert "73.75" in text and "001" in text
+    with pytest.raises(FileExistsError):
+        write_markdown_report(report, output)
+    cli = CliRunner().invoke(
+        app, ["rubric", "compare", str(scores), "-o", str(tmp_path / "cli.md")]
+    )
+    assert cli.exit_code == 0, cli.output
+
+
 def make_csv(path, rows, headers=(*REQUIRED_COLUMNS, "notes")):
     with path.open("w", encoding="utf-8", newline="") as target:
         writer = csv.writer(target)

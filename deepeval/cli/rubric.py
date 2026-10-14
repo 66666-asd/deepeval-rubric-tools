@@ -229,8 +229,11 @@ def compare_command(
         if output is not None and output.suffix.lower() not in (
             ".json",
             ".xlsx",
+            ".md",
         ):
-            raise RubricValidationError("Output must end in .json or .xlsx.")
+            raise RubricValidationError(
+                "Output must end in .json, .xlsx or .md."
+            )
         if output is not None and output.resolve() == scores.resolve():
             raise RubricValidationError("Output must not replace the input.")
         if (
@@ -249,6 +252,10 @@ def compare_command(
         )
         if output is not None and output.suffix.lower() == ".xlsx":
             write_rubric_excel_report(report, output)
+        elif output is not None and output.suffix.lower() == ".md":
+            from deepeval.rubric_reports import write_markdown_report
+
+            write_markdown_report(report, output)
         else:
             payload = json.dumps(
                 report, ensure_ascii=False, indent=2, allow_nan=False

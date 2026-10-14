@@ -1,5 +1,13 @@
 # Local rubric workflow commands
 
+## Markdown comparison reports
+
+`deepeval rubric compare scores.csv --output report.md`
+
+Produces an escaped summary and case table with source, scoring method and
+completeness status. Display uses two decimals; JSON remains full precision.
+User strings are not interpreted as HTML or Markdown links.
+
 ## Explicit candidate quality gate
 
 `deepeval rubric check scores.csv --minimum-b 70 --maximum-regression 2`

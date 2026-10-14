@@ -1,5 +1,7 @@
 """CLI for comparing supplied rubric scores; no judge or upload required."""
 
+# ruff: noqa: FA100 -- Typer resolves runtime Optional types on Python 3.9.
+
 import json
 from pathlib import Path
 from typing import Annotated, Optional
@@ -16,13 +18,32 @@ from deepeval.rubric_ops import convert_scores, validate_score_file
 app = typer.Typer(help="Validate and compare existing rubric scores locally.")
 
 
+@app.command("sample")
+def sample_command(
+    source: Path,
+    output: Path,
+    count: Annotated[int, typer.Option("--count")],
+    seed: Annotated[str, typer.Option("--seed")],
+    sheet: Optional[str] = None,
+):
+    """Sample complete cases reproducibly using an explicit seed."""
+    from deepeval.rubric_ops import sample_cases
+
+    try:
+        keys = sample_cases(source, count, seed, output, sheet=sheet)
+        typer.echo(json.dumps({"selected_cases": keys, "seed": seed}))
+    except (RubricValidationError, OSError) as exc:
+        typer.echo(f"Sampling failed: {exc}", err=True)
+        raise typer.Exit(2) from exc
+
+
 @app.command("select")
 def select_command(
     source: Path,
     output: Path,
     case: Annotated[list[str], typer.Option("--case")],
     sheet: Optional[str] = None,
-):  # noqa: FA100
+):
     """Select whole cases, preserving every criterion in each chosen case."""
     from deepeval.rubric_ops import select_cases
 
@@ -63,7 +84,7 @@ def merge_command(
 
 
 @app.command("convert")
-def convert_command(source: Path, output: Path, sheet: Optional[str] = None):  # noqa: FA100
+def convert_command(source: Path, output: Path, sheet: Optional[str] = None):
     """Convert validated scores between CSV and XLSX without rescoring."""
     try:
         count = convert_scores(source, output, sheet=sheet)
@@ -76,8 +97,8 @@ def convert_command(source: Path, output: Path, sheet: Optional[str] = None):  #
 @app.command("validate")
 def validate_command(
     scores: Path,
-    sheet: Optional[str] = None,  # noqa: FA100
-    manifest: Optional[Path] = None,  # noqa: FA100
+    sheet: Optional[str] = None,
+    manifest: Optional[Path] = None,
 ):
     """Check scores and optional expected keys without producing rankings."""
     try:
@@ -94,7 +115,7 @@ def compare_command(
         Path, typer.Argument(help="UTF-8 CSV or XLSX with paired scores.")
     ],
     output: Annotated[
-        Optional[Path],  # noqa: FA100 - Typer evaluates types on Python 3.9.
+        Optional[Path],
         typer.Option(
             "--output",
             "-o",
@@ -108,14 +129,14 @@ def compare_command(
         str, typer.Option(help="Name of the second model.")
     ] = "model_b",
     sheet: Annotated[
-        Optional[str],  # noqa: FA100 - Typer evaluates types on Python 3.9.
+        Optional[str],
         typer.Option(
             help="Excel worksheet name; required for multiple sheets."
         ),
     ] = None,
-    definition: Optional[Path] = None,  # noqa: FA100
+    definition: Optional[Path] = None,
     manifest: Annotated[
-        Optional[Path],  # noqa: FA100 - Typer evaluates types on Python 3.9.
+        Optional[Path],
         typer.Option(
             help="Independent CSV of every expected case_id/criterion_id."
         ),

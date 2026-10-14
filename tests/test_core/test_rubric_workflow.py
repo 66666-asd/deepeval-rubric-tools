@@ -97,6 +97,38 @@ def test_case_selection_preserves_whole_cases(scores, tmp_path):
     assert not (tmp_path / "bad.csv").exists()
 
 
+def test_case_sampling_is_reproducible_and_keeps_criteria(scores, tmp_path):
+    from deepeval.rubric_ops import sample_cases, write_score_rows
+
+    one, two = tmp_path / "one.csv", tmp_path / "two.csv"
+    reordered = tmp_path / "reordered.csv"
+    rows = load_rubric_scores(scores)
+    write_score_rows(list(reversed(rows)), reordered)
+    keys = sample_cases(scores, 1, "review-2026", one)
+    assert sample_cases(reordered, 1, "review-2026", two) == keys
+    assert load_rubric_scores(one) == [
+        row for row in rows if row.case_id in keys
+    ]
+    for invalid in (0, -1, 3, True, 1.5):
+        with pytest.raises(RubricValidationError):
+            sample_cases(scores, invalid, "seed", tmp_path / "bad.csv")
+    result = CliRunner().invoke(
+        app,
+        [
+            "rubric",
+            "sample",
+            str(scores),
+            str(tmp_path / "all.csv"),
+            "--count",
+            "2",
+            "--seed",
+            "test",
+        ],
+    )
+    assert result.exit_code == 0, result.output
+    assert json.loads(result.stdout)["selected_cases"] == ["001", "002"]
+
+
 def make_csv(path, rows, headers=(*REQUIRED_COLUMNS, "notes")):
     with path.open("w", encoding="utf-8", newline="") as target:
         writer = csv.writer(target)

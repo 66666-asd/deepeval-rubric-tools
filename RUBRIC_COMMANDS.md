@@ -1,5 +1,13 @@
 # Local rubric workflow commands
 
+## Reproducible review sample
+
+`deepeval rubric sample scores.csv sample.csv --count 20 --seed review-2026`
+
+Selects whole cases by SHA-256 ordering of seed and case ID, independent of
+input order. Requires a positive count no greater than the population and an
+explicit seed. This is a reproducible review subset, not statistical inference.
+
 ## Select complete cases
 
 `deepeval rubric select scores.csv subset.csv --case 001 --case 002`

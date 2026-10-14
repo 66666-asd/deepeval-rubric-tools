@@ -141,6 +141,35 @@ def select_cases(source, case_ids, output, *, sheet=None):
     return len(selected)
 
 
+def sample_cases(source, count, seed, output, *, sheet=None):
+    """Select a reproducible case sample, independent of source row order."""
+    import hashlib
+    import json
+
+    rows = load_rubric_scores(source, sheet)
+    cases = {row.case_id for row in rows}
+    if (
+        isinstance(count, bool)
+        or not isinstance(count, int)
+        or not 1 <= count <= len(cases)
+    ):
+        raise RubricValidationError(
+            f"Count must be an integer from 1 to {len(cases)}."
+        )
+    ranked = sorted(
+        cases,
+        key=lambda key: (
+            hashlib.sha256(
+                json.dumps([str(seed), key], ensure_ascii=True).encode()
+            ).digest(),
+            key,
+        ),
+    )
+    selected = set(ranked[:count])
+    write_score_rows([row for row in rows if row.case_id in selected], output)
+    return sorted(selected)
+
+
 def validate_score_file(path, *, sheet=None, manifest=None):
     """Validate input without computing model rankings or calling a judge."""
     rows = load_rubric_scores(path, sheet)

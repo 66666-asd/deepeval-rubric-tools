@@ -31,6 +31,27 @@ def test_conversion_roundtrip_and_file_protection(scores, tmp_path):
         convert_scores(scores, tmp_path / "unsupported.xls")
 
 
+def test_merge_disjoint_shards_and_reject_overlap(scores, tmp_path):
+    from deepeval.rubric_ops import merge_scores
+
+    other = make_csv(
+        tmp_path / "other.csv", [["003", "r1", "Extra", 1, 1, 1, 0, ""]]
+    )
+    output = tmp_path / "merged.csv"
+    result = CliRunner().invoke(
+        app, ["rubric", "merge", str(scores), str(other), "-o", str(output)]
+    )
+    assert result.exit_code == 0, result.output
+    assert len(load_rubric_scores(output)) == 4
+    assert load_rubric_scores(output)[:3] == load_rubric_scores(scores)
+    failed = tmp_path / "failed.csv"
+    with pytest.raises(RubricValidationError, match="Overlapping"):
+        merge_scores([scores, scores], failed)
+    assert not failed.exists()
+    with pytest.raises(RubricValidationError, match="at least two"):
+        merge_scores([scores], failed)
+
+
 def make_csv(path, rows, headers=(*REQUIRED_COLUMNS, "notes")):
     with path.open("w", encoding="utf-8", newline="") as target:
         writer = csv.writer(target)

@@ -1,5 +1,13 @@
 # Local rubric workflow commands
 
+## Merge score shards
+
+`deepeval rubric merge shard1.csv shard2.xlsx --output merged.csv`
+
+Requires two or more validated files with disjoint case/criterion keys. Even
+identical duplicate rows are rejected. Source order is preserved; no partial
+output is written when later shards are invalid. XLSX shards need one sheet.
+
 These commands run on supplied human scores, not model answers. Install the
 project and follow the offline environment setup in README.local.zh-CN.md.
 All output paths must be new; no command rewrites source data.

@@ -16,6 +16,21 @@ from deepeval.rubric_ops import convert_scores, validate_score_file
 app = typer.Typer(help="Validate and compare existing rubric scores locally.")
 
 
+@app.command("merge")
+def merge_command(
+    sources: list[Path], output: Annotated[Path, typer.Option("--output", "-o")]
+):
+    """Merge disjoint single-sheet score files, rejecting duplicate keys."""
+    from deepeval.rubric_ops import merge_scores
+
+    try:
+        count = merge_scores(sources, output)
+        typer.echo(f"Merged {count} rows to {output}")
+    except (RubricValidationError, OSError) as exc:
+        typer.echo(f"Merge failed: {exc}", err=True)
+        raise typer.Exit(2) from exc
+
+
 @app.command("convert")
 def convert_command(source: Path, output: Path, sheet: Optional[str] = None):  # noqa: FA100
     """Convert validated scores between CSV and XLSX without rescoring."""

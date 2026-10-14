@@ -60,6 +60,22 @@ def convert_scores(source, output, *, sheet=None):
     return len(rows)
 
 
+def merge_scores(sources, output):
+    """Merge disjoint score shards; duplicates are errors even when identical."""
+    if len(sources) < 2:
+        raise RubricValidationError("Merge requires at least two input files.")
+    rows, seen = [], set()
+    for source in sources:
+        for row in load_rubric_scores(source):
+            key = (row.case_id, row.criterion_id)
+            if key in seen:
+                raise RubricValidationError(f"Overlapping shard key: {key!r}.")
+            seen.add(key)
+            rows.append(row)
+    write_score_rows(rows, output)
+    return len(rows)
+
+
 def validate_score_file(path, *, sheet=None, manifest=None):
     """Validate input without computing model rankings or calling a judge."""
     rows = load_rubric_scores(path, sheet)

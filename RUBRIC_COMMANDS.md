@@ -1,5 +1,14 @@
 # Local rubric workflow commands
 
+## Recompute a saved JSON report
+
+`deepeval rubric verify-report report.json scores.csv`
+
+Recomputes all case/criterion/summary results using explicitly supplied inputs.
+Supply `--sheet`, `--manifest` and `--definition` as appropriate. Embedded file
+paths are never opened and may differ after relocation. This detects changed
+results, not fabricated provenance; malformed or mismatching reports exit 2.
+
 ## Fingerprint validated score inputs
 
 `deepeval rubric fingerprint scores.csv`

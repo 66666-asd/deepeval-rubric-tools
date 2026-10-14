@@ -18,6 +18,34 @@ from deepeval.rubric_ops import convert_scores, validate_score_file
 app = typer.Typer(help="Validate and compare existing rubric scores locally.")
 
 
+@app.command("verify-report")
+def verify_report_command(
+    report: Path,
+    source: Path,
+    sheet: Optional[str] = None,
+    manifest: Optional[Path] = None,
+    definition: Optional[Path] = None,
+):
+    """Recompute a JSON report against explicitly supplied score inputs."""
+    from deepeval.rubric_audit import verify_report
+
+    try:
+        typer.echo(
+            json.dumps(
+                verify_report(
+                    report,
+                    source,
+                    sheet=sheet,
+                    manifest=manifest,
+                    definition=definition,
+                )
+            )
+        )
+    except (RubricValidationError, OSError) as exc:
+        typer.echo(f"Report verification failed: {exc}", err=True)
+        raise typer.Exit(2) from exc
+
+
 @app.command("fingerprint")
 def fingerprint_command(source: Path, sheet: Optional[str] = None):
     """Identify raw file bytes and canonical validated score content."""

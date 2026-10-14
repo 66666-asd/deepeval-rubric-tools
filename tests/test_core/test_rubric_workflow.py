@@ -500,6 +500,29 @@ def test_fingerprints_distinguish_content_from_format(scores, tmp_path):
     assert json.loads(cli.stdout) == original
 
 
+def test_report_verification_recomputes_and_ignores_embedded_paths(
+    scores, tmp_path
+):
+    from deepeval.rubric_audit import verify_report
+
+    report = compare_rubric_file(scores)
+    report["source"] = "not-a-trusted-path.csv"
+    path = tmp_path / "report.json"
+    path.write_text(json.dumps(report), encoding="utf-8")
+    assert verify_report(path, scores)["status"] == "verified"
+    cli = CliRunner().invoke(
+        app, ["rubric", "verify-report", str(path), str(scores)]
+    )
+    assert cli.exit_code == 0, cli.output
+    report["cases"][0]["criteria"][0]["model_a_contribution"] += 1
+    path.write_text(json.dumps(report), encoding="utf-8")
+    with pytest.raises(RubricValidationError, match="differs"):
+        verify_report(path, scores)
+    path.write_text('{"schema_version":1,"schema_version":1}', encoding="utf-8")
+    with pytest.raises(RubricValidationError, match="Duplicate"):
+        verify_report(path, scores)
+
+
 def make_csv(path, rows, headers=(*REQUIRED_COLUMNS, "notes")):
     with path.open("w", encoding="utf-8", newline="") as target:
         writer = csv.writer(target)

@@ -6,7 +6,7 @@ from typing import Annotated, Optional
 
 import typer
 
-from deepeval.rubric import RubricValidationError, compare_rubric_csv
+from deepeval.rubric import RubricValidationError, compare_rubric_file
 
 app = typer.Typer(help="Validate and compare existing rubric scores locally.")
 
@@ -14,7 +14,7 @@ app = typer.Typer(help="Validate and compare existing rubric scores locally.")
 @app.command("compare")
 def compare_command(
     scores: Annotated[
-        Path, typer.Argument(help="UTF-8 CSV with paired scores.")
+        Path, typer.Argument(help="UTF-8 CSV or XLSX with paired scores.")
     ],
     output: Annotated[
         Optional[Path],  # noqa: FA100 - Typer evaluates types on Python 3.9.
@@ -28,6 +28,12 @@ def compare_command(
     model_b: Annotated[
         str, typer.Option(help="Name of the second model.")
     ] = "model_b",
+    sheet: Annotated[
+        Optional[str],  # noqa: FA100 - Typer evaluates types on Python 3.9.
+        typer.Option(
+            help="Excel worksheet name; required for multiple sheets."
+        ),
+    ] = None,
 ):
     """Check every row, then report per-case scores and an overall comparison.
 
@@ -38,7 +44,7 @@ def compare_command(
     try:
         if output is not None and output.resolve() == scores.resolve():
             raise RubricValidationError("Output must not replace the input.")
-        report = compare_rubric_csv(scores, model_a, model_b)
+        report = compare_rubric_file(scores, model_a, model_b, sheet=sheet)
         payload = json.dumps(
             report, ensure_ascii=False, indent=2, allow_nan=False
         )

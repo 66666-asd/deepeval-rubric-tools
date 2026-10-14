@@ -4,9 +4,12 @@ from __future__ import annotations
 
 import csv
 import math
+from collections.abc import Iterable
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
+from xml.etree.ElementTree import ParseError
+from zipfile import BadZipFile, ZipFile
 
 REQUIRED_COLUMNS = (
     "case_id",
@@ -49,26 +52,26 @@ def _number(value: str, column: str, line: int) -> float:
     return result
 
 
-def load_rubric_csv(path: str | Path) -> list[RubricScore]:
-    """Load UTF-8 (optionally BOM) CSV; never turn missing scores into zero."""
-    rows: list[RubricScore] = []
-    seen = set()
+def _validate_columns(columns, required, optional=()):
+    if not columns:
+        raise RubricValidationError("Table is empty or has no header.")
+    if not all(isinstance(column, str) for column in columns):
+        raise RubricValidationError("Headers must be nonempty text.")
+    if len(columns) != len(set(columns)):
+        raise RubricValidationError("Table contains duplicate headers.")
+    missing = sorted(set(required) - set(columns))
+    unknown = sorted(set(columns) - set(required) - set(optional))
+    if missing or unknown:
+        raise RubricValidationError(
+            f"Invalid columns: missing={missing}; unknown={unknown}."
+        )
+
+
+def _read_csv(path, required=REQUIRED_COLUMNS, optional=OPTIONAL_COLUMNS):
     try:
         with Path(path).open(encoding="utf-8-sig", newline="") as source:
             reader = csv.DictReader(source, strict=True)
-            columns = reader.fieldnames
-            if not columns:
-                raise RubricValidationError("CSV is empty or has no header.")
-            if len(columns) != len(set(columns)):
-                raise RubricValidationError("CSV contains duplicate headers.")
-            missing = sorted(set(REQUIRED_COLUMNS) - set(columns))
-            unknown = sorted(
-                set(columns) - set(REQUIRED_COLUMNS) - set(OPTIONAL_COLUMNS)
-            )
-            if missing or unknown:
-                raise RubricValidationError(
-                    f"Invalid columns: missing={missing}; unknown={unknown}."
-                )
+            _validate_columns(reader.fieldnames, required, optional)
             for record in reader:
                 line = reader.line_num
                 if None in record or any(
@@ -77,49 +80,180 @@ def load_rubric_csv(path: str | Path) -> list[RubricScore]:
                     raise RubricValidationError(
                         f"Line {line}: field count does not match the header."
                     )
-                record = {key: value.strip() for key, value in record.items()}
-                for column in REQUIRED_COLUMNS:
-                    if not record[column]:
-                        raise RubricValidationError(
-                            f"Line {line}: {column} is required."
-                        )
-                key = (record["case_id"], record["criterion_id"])
-                if key in seen:
-                    raise RubricValidationError(
-                        f"Line {line}: duplicate case/criterion {key!r}."
-                    )
-                seen.add(key)
-                numbers = {
-                    column: _number(record[column], column, line)
-                    for column in REQUIRED_COLUMNS[3:]
-                }
-                for column in ("weight", "max_score"):
-                    if numbers[column] <= 0:
-                        raise RubricValidationError(
-                            f"Line {line}: {column} must be greater than zero."
-                        )
-                for column in ("model_a_score", "model_b_score"):
-                    if not 0 <= numbers[column] <= numbers["max_score"]:
-                        raise RubricValidationError(
-                            f"Line {line}: {column} must be between zero "
-                            "and max_score."
-                        )
-                rows.append(
-                    RubricScore(
-                        case_id=key[0],
-                        criterion_id=key[1],
-                        criterion=record["criterion"],
-                        notes=record.get("notes", ""),
-                        **numbers,
-                    )
+                yield (
+                    line,
+                    {key: value.strip() for key, value in record.items()},
                 )
     except (UnicodeError, csv.Error) as exc:
         raise RubricValidationError(
             f"Cannot read CSV as valid UTF-8 CSV: {exc}"
         ) from exc
+
+
+def _score_records(records: Iterable[tuple[int, dict[str, str]]]):
+    rows: list[RubricScore] = []
+    seen = set()
+    for line, record in records:
+        for column in REQUIRED_COLUMNS:
+            if not record[column]:
+                raise RubricValidationError(
+                    f"Line {line}: {column} is required."
+                )
+        key = (record["case_id"], record["criterion_id"])
+        if key in seen:
+            raise RubricValidationError(
+                f"Line {line}: duplicate case/criterion {key!r}."
+            )
+        seen.add(key)
+        numbers = {
+            column: _number(record[column], column, line)
+            for column in REQUIRED_COLUMNS[3:]
+        }
+        for column in ("weight", "max_score"):
+            if numbers[column] <= 0:
+                raise RubricValidationError(
+                    f"Line {line}: {column} must be greater than zero."
+                )
+        for column in ("model_a_score", "model_b_score"):
+            if not 0 <= numbers[column] <= numbers["max_score"]:
+                raise RubricValidationError(
+                    f"Line {line}: {column} must be between zero and max_score."
+                )
+        rows.append(
+            RubricScore(
+                case_id=key[0],
+                criterion_id=key[1],
+                criterion=record["criterion"],
+                notes=record.get("notes", ""),
+                **numbers,
+            )
+        )
     if not rows:
-        raise RubricValidationError("CSV must contain at least one score row.")
+        raise RubricValidationError(
+            "Table must contain at least one score row."
+        )
     return rows
+
+
+def load_rubric_csv(path: str | Path) -> list[RubricScore]:
+    """Load UTF-8 (optionally BOM) CSV; never turn missing scores into zero."""
+    return _score_records(_read_csv(path))
+
+
+def _read_xlsx(path, sheet):
+    try:
+        import defusedxml  # noqa: F401 - required for safe XML parsing.
+        from defusedxml.common import DefusedXmlException
+        from openpyxl import load_workbook
+        from openpyxl.utils.exceptions import InvalidFileException
+        from openpyxl.xml import DEFUSEDXML
+    except ImportError as exc:
+        raise RubricValidationError(
+            "Excel support is optional. Install requirements-rubric-excel.txt."
+        ) from exc
+    if not DEFUSEDXML:
+        raise RubricValidationError("Excel input requires defusedxml enabled.")
+    path = Path(path)
+    if path.stat().st_size > 50 * 1024 * 1024:
+        raise RubricValidationError("Excel file exceeds the 50 MiB size limit.")
+    try:
+        with ZipFile(path) as archive:
+            entries = archive.infolist()
+            if (
+                len(entries) > 10000
+                or sum(e.file_size for e in entries) > 200 * 1024 * 1024
+            ):
+                raise RubricValidationError(
+                    "Excel archive exceeds safety limits."
+                )
+        workbook = load_workbook(
+            path,
+            read_only=True,
+            data_only=False,
+            keep_links=False,
+        )
+        try:
+            if sheet is None:
+                if len(workbook.sheetnames) != 1:
+                    raise RubricValidationError(
+                        "Workbook has multiple sheets; select one with --sheet."
+                    )
+                sheet = workbook.sheetnames[0]
+            if sheet not in workbook.sheetnames:
+                raise RubricValidationError(
+                    f"Worksheet {sheet!r} was not found."
+                )
+            worksheet = workbook[sheet]
+            # Read actual cells instead of trusting possibly stale dimensions.
+            worksheet.reset_dimensions()
+            iterator = worksheet.iter_rows()
+            header = next(iterator, ())
+            columns = [cell.value for cell in header]
+            _validate_columns(columns, REQUIRED_COLUMNS, OPTIONAL_COLUMNS)
+            for line, cells in enumerate(iterator, start=2):
+                if line > 100001:
+                    raise RubricValidationError(
+                        "Excel sheet exceeds 100000 data rows."
+                    )
+                if all(cell.value is None for cell in cells):
+                    continue
+                if any(
+                    cell.value is not None for cell in cells[len(columns) :]
+                ):
+                    raise RubricValidationError(
+                        f"Line {line}: unexpected extra cells."
+                    )
+                record = {}
+                for index, column in enumerate(columns):
+                    cell = cells[index] if index < len(cells) else None
+                    value = cell.value if cell is not None else None
+                    if cell is not None and cell.data_type in ("f", "e"):
+                        raise RubricValidationError(
+                            f"Cell {cell.coordinate}: formulas and Excel errors are not allowed."
+                        )
+                    if isinstance(value, bool):
+                        raise RubricValidationError(
+                            f"Line {line}: booleans are not scores or identifiers."
+                        )
+                    if (
+                        value is not None
+                        and column in REQUIRED_COLUMNS[:3] + OPTIONAL_COLUMNS
+                        and not isinstance(value, str)
+                    ):
+                        raise RubricValidationError(
+                            f"Line {line}: {column} must be text (preserve leading zeros)."
+                        )
+                    record[column] = "" if value is None else str(value).strip()
+                yield line, record
+        finally:
+            workbook.close()
+    except (
+        BadZipFile,
+        ParseError,
+        InvalidFileException,
+        DefusedXmlException,
+        KeyError,
+        ValueError,
+    ) as exc:
+        if isinstance(exc, RubricValidationError):
+            raise
+        raise RubricValidationError(
+            f"Cannot read a valid XLSX workbook: {exc}"
+        ) from exc
+
+
+def load_rubric_scores(path: str | Path, sheet: str | None = None):
+    """Read a CSV or XLSX sheet using identical score validation."""
+    suffix = Path(path).suffix.lower()
+    if suffix == ".xlsx":
+        return _score_records(_read_xlsx(path, sheet))
+    if suffix == ".csv":
+        if sheet is not None:
+            raise RubricValidationError(
+                "--sheet can only be used with XLSX input."
+            )
+        return load_rubric_csv(path)
+    raise RubricValidationError("Supported input formats are .csv and .xlsx.")
 
 
 def _winner(delta: float, model_a: str, model_b: str) -> str:
@@ -133,6 +267,27 @@ def compare_rubric_csv(
     model_a: str = "model_a",
     model_b: str = "model_b",
 ) -> dict[str, Any]:
+    """Backward-compatible CSV comparison API."""
+    return _compare_scores(load_rubric_csv(path), path, model_a, model_b)
+
+
+def compare_rubric_file(
+    path: str | Path,
+    model_a: str = "model_a",
+    model_b: str = "model_b",
+    *,
+    sheet: str | None = None,
+) -> dict[str, Any]:
+    """Compare CSV or XLSX scores without changing the scoring convention."""
+    report = _compare_scores(
+        load_rubric_scores(path, sheet), path, model_a, model_b
+    )
+    if sheet is not None:
+        report["source_sheet"] = sheet
+    return report
+
+
+def _compare_scores(rows, path, model_a, model_b):
     """Compute per-case weighted percentages, then an equal-case macro mean.
 
     Input scores are supplied judgments, not judgments made by DeepEval.
@@ -148,7 +303,6 @@ def compare_rubric_csv(
         raise RubricValidationError(
             "Model names must be nonempty, distinct, and not 'tie'."
         )
-    rows = load_rubric_csv(path)
     groups: dict[str, list[RubricScore]] = {}
     for row in rows:
         groups.setdefault(row.case_id, []).append(row)

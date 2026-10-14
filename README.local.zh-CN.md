@@ -16,7 +16,7 @@
 - 每题按权重归一化为百分制，再对各题等权平均。
 - 输出总分、每题分数、逐点评分、加权贡献、差值、胜负和备注。
 - 输入不完整时整体报错，不将漏评当作零分，不生成部分报告。
-- 不覆盖输入或已有输出；没有新增运行时依赖。
+- 不覆盖输入或已有输出；CSV 模式无新增依赖，Excel 导入使用可选依赖。
 
 ## Windows 快速运行
 
@@ -43,6 +43,21 @@ DeepEval 初始化仍可能读取其现有本地配置；建议在本项目目�
 
 原生命令：`deepeval rubric compare scores.csv --output report.json`。
 不传 `--output` 时输出 JSON 到标准输出；校验或文件错误退出码为 2。
+
+## Excel 评分表导入
+
+```powershell
+.\.venv\Scripts\python.exe -m pip install -r requirements-rubric-excel.txt
+.\run_rubric.ps1 -Scores C:\data\scores.xlsx -Sheet Scores -OutputPath C:\data\comparison.json
+```
+
+Excel 第一行为与 CSV 相同的英文列名。只支持 `.xlsx`，不支持 `.xls` 或 `.xlsm`。
+只有一个工作表时可省略 `-Sheet`，有多个工作表时必须明确选择。
+题号、评分点编号和描述需存为文本，避免数值格式导致前导零丢失；分数可为数值。
+公式单元格和 Excel 错误值会被拒绝，不读取可能过期的公式缓存，也不执行公式。
+完全空白行忽略；部分填写的行仍做完整性检查。
+文件限制为 50 MiB，解压总量不超过 200 MiB、10000 个 ZIP 条目，最多 100000 行数据。
+导入只读，不会修改源工作簿；不解析外部链接。
 
 ## CSV 格式与评分口径
 
@@ -78,7 +93,7 @@ DeepEval 初始化仍可能读取其现有本地配置；建议在本项目目�
 ## 测试
 
 ```powershell
-.\.venv\Scripts\python.exe -m pip install pytest-socket ruff
+.\.venv\Scripts\python.exe -m pip install -r requirements-rubric-excel.txt pytest-socket ruff
 $env:DEEPEVAL_TELEMETRY_OPT_OUT='1'
 $env:DEEPEVAL_DISABLE_DOTENV='1'
 $env:DEEPEVAL_UPDATE_WARNING_OPT_IN='0'
@@ -95,7 +110,7 @@ $env:PYTEST_DISABLE_PLUGIN_AUTOLOAD='1'
 
 ## 后续真实开发方向
 
-1. 在 CSV 读取层之外增加 XLSX 导入和列名映射；待取得实际交付模板后确定表头及类型规则。
+1. 已支持固定列名的 XLSX 导入；下一步待取得实际交付模板后增加明确的列名映射，不猜测评分字段。
 2. 增加题目与 Rubric 基准清单，核对双方同时漏掉的整题或评分点；当前没有可用基准数据。
 3. 把单列 notes 扩展成 A/B 独立证据与来源位置；需先明确现有评审材料的证据格式。
 4. 增加多评审员记录与一致性分析；当前只有两模型评分，没有评审员身份和重复标注。

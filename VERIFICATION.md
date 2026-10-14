@@ -56,3 +56,14 @@
   whose key body is the literal string `abc`. This is a focused credential
   check, not an exhaustive security audit or a guarantee of no secrets.
 - Remote push and GitHub-hosted CI outcomes must be checked separately.
+
+## XLSX import feature verification - 2026-10-14
+
+- Added optional openpyxl 3.1.5 and defusedxml 0.7.1 in the isolated environment.
+- Combined CSV, XLSX, CLI and test-run regressions: **165 passed, 2 existing
+  upstream collection warnings in 8.55 seconds**, with sockets disabled.
+- Verified CSV/XLSX scoring equivalence, preserved text IDs, required sheet
+  selection, duplicate detection, empty cells, formulas, Excel error values,
+  booleans, malformed ZIPs, and prevention of partial reports.
+- XLSX import is a single implemented feature; tests and documentation are
+  committed together with implementation, not split to inflate commit counts.

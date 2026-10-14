@@ -43,3 +43,11 @@ files contain a downstream change notice; new modules are local additions.
   adjacent offline regressions, with read-only permissions and no credentials.
 - The synthetic demo report uses a relative source path for portability and
   does not publish the author's local filesystem path.
+
+## Downstream feature development - 2026-10-14
+
+- XLSX score import shares the existing CSV validation and scoring logic.
+  Optional openpyxl/defusedxml dependencies, explicit worksheet selection,
+  formula rejection, and offline integration tests are included.
+- New work is developed on `codex/rubric-excel-manifest`, without rewriting
+  remote commits, backdating work, or manufacturing an admission commit count.

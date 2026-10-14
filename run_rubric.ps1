@@ -2,7 +2,8 @@ param(
     [string]$Scores = (Join-Path $PSScriptRoot 'examples\rubric\paired_scores.csv'),
     [string]$OutputPath,
     [string]$ModelA = 'model_a',
-    [string]$ModelB = 'model_b'
+    [string]$ModelB = 'model_b',
+    [string]$Sheet
 )
 
 $ErrorActionPreference = 'Stop'
@@ -29,6 +30,7 @@ try {
     }
     $cliArgs = @('rubric', 'compare', $Scores, '--model-a', $ModelA, '--model-b', $ModelB)
     if ($OutputPath) { $cliArgs += @('--output', $OutputPath) }
+    if ($Sheet) { $cliArgs += @('--sheet', $Sheet) }
     & $command @cliArgs
     $resultCode = $LASTEXITCODE
 } finally {

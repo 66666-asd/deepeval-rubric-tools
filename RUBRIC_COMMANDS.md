@@ -1,5 +1,13 @@
 # Local rubric workflow commands
 
+## Standalone HTML report
+
+`deepeval rubric compare scores.csv --output report.html`
+
+Produces summary, case and criterion tables with escaped user content and a
+restrictive content policy. No JavaScript, remote assets or external requests.
+The file can be viewed offline; it is a result snapshot, not an editing UI.
+
 ## Markdown comparison reports
 
 `deepeval rubric compare scores.csv --output report.md`

@@ -230,9 +230,10 @@ def compare_command(
             ".json",
             ".xlsx",
             ".md",
+            ".html",
         ):
             raise RubricValidationError(
-                "Output must end in .json, .xlsx or .md."
+                "Output must end in .json, .xlsx, .md or .html."
             )
         if output is not None and output.resolve() == scores.resolve():
             raise RubricValidationError("Output must not replace the input.")
@@ -252,6 +253,10 @@ def compare_command(
         )
         if output is not None and output.suffix.lower() == ".xlsx":
             write_rubric_excel_report(report, output)
+        elif output is not None and output.suffix.lower() == ".html":
+            from deepeval.rubric_reports import write_html_report
+
+            write_html_report(report, output)
         elif output is not None and output.suffix.lower() == ".md":
             from deepeval.rubric_reports import write_markdown_report
 

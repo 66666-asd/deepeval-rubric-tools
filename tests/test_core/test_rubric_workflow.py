@@ -245,6 +245,43 @@ def test_markdown_report_escapes_user_content_and_protects_output(
     assert cli.exit_code == 0, cli.output
 
 
+def test_html_report_contains_no_user_markup(scores, tmp_path):
+    from html.parser import HTMLParser
+
+    from deepeval.rubric_reports import write_html_report
+
+    report = compare_rubric_file(
+        scores, model_a='<img src=x onerror="alert(1)">'
+    )
+    report["cases"][0]["criteria"][0]["notes"] = (
+        "</td><script>alert(1)</script>"
+    )
+    output = tmp_path / "report.html"
+    write_html_report(report, output)
+    text = output.read_text(encoding="utf-8")
+
+    class Tags(HTMLParser):
+        def __init__(self):
+            super().__init__()
+            self.tags = []
+
+        def handle_starttag(self, tag, attrs):
+            self.tags.append(tag)
+
+    parser = Tags()
+    parser.feed(text)
+    assert "script" not in parser.tags and "img" not in parser.tags
+    assert parser.tags.count("table") == 3
+    assert "Content-Security-Policy" in text
+    with pytest.raises(FileExistsError):
+        write_html_report(report, output)
+    result = CliRunner().invoke(
+        app,
+        ["rubric", "compare", str(scores), "-o", str(tmp_path / "cli.html")],
+    )
+    assert result.exit_code == 0, result.output
+
+
 def make_csv(path, rows, headers=(*REQUIRED_COLUMNS, "notes")):
     with path.open("w", encoding="utf-8", newline="") as target:
         writer = csv.writer(target)

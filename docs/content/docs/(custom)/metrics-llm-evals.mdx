@@ -1,0 +1,1242 @@
+---
+id: metrics-llm-evals
+title: G-Eval
+sidebar_label: G-Eval
+languages: [python, typescript]
+---
+
+import { ASSETS } from "@site/src/assets";
+
+<MetricTagsDisplayer singleTurn={true} multiTurn={true} custom={true} />
+
+G-Eval is a framework that uses LLM-as-a-judge with chain-of-thoughts (CoT) to evaluate LLM outputs based on **ANY** custom criteria. The G-Eval metric is the most versatile type of metric `deepeval` has to offer, and is capable of evaluating almost any use case with human-like accuracy.
+
+Usually, a `GEval` metric will be used alongside one of the other metrics that are more system specific (such as `ContextualRelevancyMetric` for RAG, and `TaskCompletionMetric` for agents). This is because `G-Eval` is a custom metric best for subjective, use case specific evaluation.
+
+:::tip
+If you want custom but extremely deterministic metric scores, you can checkout `deepeval`'s [`DAGMetric`](/docs/metrics-dag) instead. It is also a custom metric, but allows you to run evaluations by constructing a LLM-powered decision trees.
+
+:::
+
+## Usage
+
+To create a custom metric that uses LLMs for evaluation, simply instantiate a G-Eval metric and **define an evaluation criteria in everyday language**:
+
+<Tabs items={["Single-Turn", "Multi-Turn"]}>
+<Tab value="Single-Turn">
+
+<Switch>
+
+<Case id="python">
+
+```python
+from deepeval.test_case import SingleTurnParams
+from deepeval.metrics import GEval
+
+correctness_metric = GEval(
+    name="Correctness",
+    criteria="Determine whether the actual output is factually correct based on the expected output.",
+    # NOTE: you can only provide either criteria or evaluation_steps, and not both
+    evaluation_steps=[
+        "Check whether the facts in 'actual output' contradicts any facts in 'expected output'",
+        "You should also heavily penalize omission of detail",
+        "Vague language, or contradicting OPINIONS, are OK"
+    ],
+    evaluation_params=[SingleTurnParams.INPUT, SingleTurnParams.ACTUAL_OUTPUT, SingleTurnParams.EXPECTED_OUTPUT],
+)
+```
+
+</Case>
+
+<Case id="typescript">
+
+```typescript
+import { SingleTurnParams } from "deepeval/test-case";
+import { GEval } from "deepeval/metrics";
+
+const correctnessMetric = new GEval({
+  name: "Correctness",
+  criteria: "Determine whether the actual output is factually correct based on the expected output.",
+  // NOTE: you can only provide either criteria or evaluationSteps, and not both
+  evaluationSteps: [
+    "Check whether the facts in 'actual output' contradicts any facts in 'expected output'",
+    "You should also heavily penalize omission of detail",
+    "Vague language, or contradicting OPINIONS, are OK",
+  ],
+  evaluationParams: [SingleTurnParams.INPUT, SingleTurnParams.ACTUAL_OUTPUT, SingleTurnParams.EXPECTED_OUTPUT],
+});
+```
+
+</Case>
+
+</Switch>
+
+</Tab>
+<Tab value="Multi-Turn">
+
+<Switch>
+
+<Case id="python">
+
+```python
+from deepeval.test_case import MultiTurnParams
+from deepeval.metrics import ConversationalGEval
+
+professionalism_metric = ConversationalGEval(
+    name="Professionalism",
+    criteria="Determine whether the assistant has acted professionally based on the content.",
+    # NOTE: you can only provide either criteria or evaluation_steps, and not both
+    evaluation_steps=[
+        "Check whether every assistant turn maintains a courteous, professional tone",
+        "Heavily penalize slang, sarcasm, or dismissive language towards the user",
+        "Hedged or uncertain answers are OK as long as they stay respectful"
+    ],
+    evaluation_params=[MultiTurnParams.CONTENT],
+)
+```
+
+</Case>
+
+<Case id="typescript">
+
+```typescript
+import { MultiTurnParams } from "deepeval/test-case";
+import { ConversationalGEval } from "deepeval/metrics";
+
+const professionalismMetric = new ConversationalGEval({
+  name: "Professionalism",
+  criteria: "Determine whether the assistant has acted professionally based on the content.",
+  // NOTE: you can only provide either criteria or evaluationSteps, and not both
+  evaluationSteps: [
+    "Check whether every assistant turn maintains a courteous, professional tone",
+    "Heavily penalize slang, sarcasm, or dismissive language towards the user",
+    "Hedged or uncertain answers are OK as long as they stay respectful",
+  ],
+  evaluationParams: [MultiTurnParams.CONTENT],
+});
+```
+
+</Case>
+
+</Switch>
+
+</Tab>
+</Tabs>
+
+<Switch>
+
+<Case id="python">
+
+There are **THREE** mandatory and **NINE** optional parameters required when instantiating a G-Eval metric:
+
+</Case>
+
+<Case id="typescript">
+
+There are **THREE** mandatory and **SEVEN** optional parameters required when instantiating a G-Eval metric:
+
+</Case>
+
+</Switch>
+
+- `name`: name of custom metric.
+- `criteria`: a description outlining the specific evaluation aspects for each test case.
+- <Term py="evaluation_params" ts="evaluationParams"/>: a list of type `SingleTurnParams` (or `MultiTurnParams` for multi-turn). Include only the parameters that are relevant for evaluation. For single-turn G-Eval, omit it to [evaluate the trajectory](#evaluating-the-trajectory) instead.
+- [Optional] <Term py="evaluation_steps" ts="evaluationSteps"/>: a list of strings outlining the exact steps the LLM should take for evaluation. If <Term py="evaluation_steps" ts="evaluationSteps"/> is not provided, G-Eval will generate a series of <Term py="evaluation_steps" ts="evaluationSteps"/> on your behalf based on the provided `criteria`.
+- [Optional] `rubric`: a list of `Rubric`s that allows you to [confine the range](/docs/metrics-llm-evals#rubric) of the final metric score.
+- [Optional] `threshold`: the passing threshold. Can also be set to <Term py="None" ts="null"/> to run the metric in [score-only mode](/docs/metrics-introduction#metric-thresholds). Defaulted to `0.5`.
+- [Optional] `model`: a string specifying which of OpenAI's GPT models to use, **OR** [any custom LLM model](/docs/metrics-introduction#using-a-custom-llm) of type `DeepEvalBaseLLM`. Defaulted to <DefaultLLMModel />.
+- [Optional] <Term py="strict_mode" ts="strictMode"/>: a boolean which when set to <Term py="True" ts="true"/>, enforces a binary metric score: 1 for perfection, 0 otherwise. It also overrides the current threshold and sets it to 1. Defaulted to <Term py="False" ts="false"/>.
+- <Only id="python">
+    [Optional] `async_mode`: a boolean which when set to `True`, enables [concurrent execution within the `measure()` method.](/docs/metrics-introduction#measuring-metrics-in-async) Defaulted to `True`.
+  </Only>
+- [Optional] <Term py="verbose_mode" ts="verboseMode"/>: a boolean which when set to <Term py="True" ts="true"/>, prints the intermediate steps used to calculate said metric to the console, as outlined in the [How Is It Calculated](#how-is-it-calculated) section. Defaulted to <Term py="False" ts="false"/>.
+- [Optional] <Term py="evaluation_template" ts="evaluationTemplate"/>: a class of type `GEvalTemplate`, which allows you to [override the default prompts](#customize-your-template) used to compute the G-Eval score. Defaulted to `deepeval`'s `GEvalTemplate`.
+- [Optional] `flaky`: a boolean which when set to <Term py="True" ts="true"/>, [marks the metric as flaky](/docs/metrics-introduction#flaky-metrics). Defaulted to <Term py="False" ts="false"/>.
+
+:::danger
+For accurate and valid results, only the parameters that are mentioned in `criteria`/<Term py="evaluation_steps" ts="evaluationSteps"/> should be included as a member of <Term py="evaluation_params" ts="evaluationParams"/>.
+:::
+
+As mentioned in the [metrics introduction section](/docs/metrics-introduction), all of `deepeval`'s metrics return a score ranging from 0 - 1, and a metric is only successful if the evaluation score is equal to or greater than `threshold`, and G-Eval is no exception. You can access the `score` and `reason` for each individual metric:
+
+<Tabs items={["Single-Turn", "Multi-Turn"]}>
+<Tab value="Single-Turn">
+
+<Switch>
+
+<Case id="python">
+
+```python
+from deepeval.test_case import LLMTestCase
+from deepeval import evaluate
+...
+
+test_case = LLMTestCase(
+    input="The dog chased the cat up the tree, who ran up the tree?",
+    actual_output="It depends, some might consider the cat, while others might argue the dog.",
+    expected_output="The cat."
+)
+
+# To run metric as a standalone
+# correctness_metric.measure(test_case)
+# print(correctness_metric.score, correctness_metric.reason)
+
+evaluate(test_cases=[test_case], metrics=[correctness_metric])
+```
+
+</Case>
+
+<Case id="typescript">
+
+```typescript
+import { LLMTestCase } from "deepeval/test-case";
+import { evaluate } from "deepeval";
+// ...
+
+const testCase = new LLMTestCase({
+  input: "The dog chased the cat up the tree, who ran up the tree?",
+  actualOutput: "It depends, some might consider the cat, while others might argue the dog.",
+  expectedOutput: "The cat.",
+});
+
+// To run metric as a standalone
+// await correctnessMetric.measure(testCase);
+// console.log(correctnessMetric.score, correctnessMetric.reason);
+
+await evaluate([testCase], [correctnessMetric]);
+```
+
+</Case>
+
+</Switch>
+
+</Tab>
+<Tab value="Multi-Turn">
+
+<Switch>
+
+<Case id="python">
+
+```python
+from deepeval.test_case import ConversationalTestCase, Turn
+from deepeval import evaluate
+...
+
+convo_test_case = ConversationalTestCase(
+    turns=[
+        Turn(role="user", content="My order arrived a week late. I want a refund."),
+        Turn(role="assistant", content="Sorry about that. What is your order number?"),
+        Turn(role="user", content="It's 4471."),
+        Turn(role="assistant", content="Thanks, I've issued a full refund. It'll land in 5-7 days."),
+    ]
+)
+
+# To run metric as a standalone
+# professionalism_metric.measure(convo_test_case)
+# print(professionalism_metric.score, professionalism_metric.reason)
+
+evaluate(test_cases=[convo_test_case], metrics=[professionalism_metric])
+```
+
+</Case>
+
+<Case id="typescript">
+
+```typescript
+import { ConversationalTestCase, Turn } from "deepeval/test-case";
+import { evaluate } from "deepeval";
+// ...
+
+const convoTestCase = new ConversationalTestCase({
+  turns: [
+    new Turn({ role: "user", content: "My order arrived a week late. I want a refund." }),
+    new Turn({ role: "assistant", content: "Sorry about that. What is your order number?" }),
+    new Turn({ role: "user", content: "It's 4471." }),
+    new Turn({ role: "assistant", content: "Thanks, I've issued a full refund. It'll land in 5-7 days." }),
+  ],
+});
+
+// To run metric as a standalone
+// await professionalismMetric.measure(convoTestCase);
+// console.log(professionalismMetric.score, professionalismMetric.reason);
+
+await evaluate([convoTestCase], [professionalismMetric]);
+```
+
+</Case>
+
+</Switch>
+
+</Tab>
+</Tabs>
+
+:::note
+This is an example of [end-to-end evaluation](/docs/evaluation-end-to-end-llm-evals), where your LLM application is treated as a black-box.
+:::
+
+<Only id="python">
+
+:::tip
+You can upload your G-Eval metrics to [Confident AI](https://app.confident-ai.com/) and use them as custom evaluation metrics. To upload a metric simply call the `upload` method of a metric instance:
+
+```python
+...
+
+metric = GEval(...)
+metric.upload()
+```
+
+:::
+
+</Only>
+
+### Evaluation Steps
+
+Providing <Term py="evaluation_steps" ts="evaluationSteps"/> tells G-Eval to follow your <Term py="evaluation_steps" ts="evaluationSteps"/> for evaluation instead of first generating one from `criteria`, which allows for more controllable metric scores (more info [here](#how-is-it-calculated)):
+
+<Tabs items={["Single-Turn", "Multi-Turn"]}>
+<Tab value="Single-Turn">
+
+<Switch>
+
+<Case id="python">
+
+```python
+...
+
+correctness_metric = GEval(
+    name="Correctness",
+    evaluation_steps=[
+        "Check whether the facts in 'actual output' contradicts any facts in 'expected output'",
+        "You should also heavily penalize omission of detail",
+        "Vague language, or contradicting OPINIONS, are OK"
+    ],
+    evaluation_params=[SingleTurnParams.ACTUAL_OUTPUT, SingleTurnParams.EXPECTED_OUTPUT],
+)
+```
+
+</Case>
+
+<Case id="typescript">
+
+```typescript
+// ...
+
+const correctnessMetric = new GEval({
+  name: "Correctness",
+  evaluationSteps: [
+    "Check whether the facts in 'actual output' contradicts any facts in 'expected output'",
+    "You should also heavily penalize omission of detail",
+    "Vague language, or contradicting OPINIONS, are OK",
+  ],
+  evaluationParams: [SingleTurnParams.ACTUAL_OUTPUT, SingleTurnParams.EXPECTED_OUTPUT],
+});
+```
+
+</Case>
+
+</Switch>
+
+</Tab>
+<Tab value="Multi-Turn">
+
+<Switch>
+
+<Case id="python">
+
+```python
+...
+
+professionalism_metric = ConversationalGEval(
+    name="Professionalism",
+    evaluation_steps=[
+        "Check whether every assistant turn maintains a courteous, professional tone",
+        "Heavily penalize slang, sarcasm, or dismissive language towards the user",
+        "Hedged or uncertain answers are OK as long as they stay respectful"
+    ],
+    evaluation_params=[MultiTurnParams.CONTENT],
+)
+```
+
+</Case>
+
+<Case id="typescript">
+
+```typescript
+// ...
+
+const professionalismMetric = new ConversationalGEval({
+  name: "Professionalism",
+  evaluationSteps: [
+    "Check whether every assistant turn maintains a courteous, professional tone",
+    "Heavily penalize slang, sarcasm, or dismissive language towards the user",
+    "Hedged or uncertain answers are OK as long as they stay respectful",
+  ],
+  evaluationParams: [MultiTurnParams.CONTENT],
+});
+```
+
+</Case>
+
+</Switch>
+
+</Tab>
+</Tabs>
+
+### Rubric
+
+You can provide a list of `Rubric`s through the `rubric` argument to confine your evaluation LLM to output in specific score ranges:
+
+<Tabs items={["Single-Turn", "Multi-Turn"]}>
+<Tab value="Single-Turn">
+
+<Switch>
+
+<Case id="python">
+
+```python
+from deepeval.metrics.g_eval import Rubric
+...
+
+correctness_metric = GEval(
+    name="Correctness",
+    criteria="Determine whether the actual output is factually correct based on the expected output.",
+    evaluation_params=[SingleTurnParams.ACTUAL_OUTPUT, SingleTurnParams.EXPECTED_OUTPUT],
+    rubric=[
+        Rubric(score_range=(0,2), expected_outcome="Factually incorrect."),
+        Rubric(score_range=(3,6), expected_outcome="Mostly correct."),
+        Rubric(score_range=(7,9), expected_outcome="Correct but missing minor details."),
+        Rubric(score_range=(10,10), expected_outcome="100% correct."),
+    ]
+)
+```
+
+</Case>
+
+<Case id="typescript">
+
+```typescript
+// ...
+
+const correctnessMetric = new GEval({
+  name: "Correctness",
+  criteria: "Determine whether the actual output is factually correct based on the expected output.",
+  evaluationParams: [SingleTurnParams.ACTUAL_OUTPUT, SingleTurnParams.EXPECTED_OUTPUT],
+  rubric: [
+    { scoreRange: [0, 2], expectedOutcome: "Factually incorrect." },
+    { scoreRange: [3, 6], expectedOutcome: "Mostly correct." },
+    { scoreRange: [7, 9], expectedOutcome: "Correct but missing minor details." },
+    { scoreRange: [10, 10], expectedOutcome: "100% correct." },
+  ],
+});
+```
+
+</Case>
+
+</Switch>
+
+</Tab>
+<Tab value="Multi-Turn">
+
+<Switch>
+
+<Case id="python">
+
+```python
+from deepeval.metrics.g_eval import Rubric
+...
+
+professionalism_metric = ConversationalGEval(
+    name="Professionalism",
+    criteria="Determine whether the assistant has acted professionally based on the content.",
+    evaluation_params=[MultiTurnParams.CONTENT],
+    rubric=[
+        Rubric(score_range=(0,2), expected_outcome="Rude or dismissive in at least one turn."),
+        Rubric(score_range=(3,6), expected_outcome="Mostly professional with occasional lapses."),
+        Rubric(score_range=(7,9), expected_outcome="Professional throughout, minor informality."),
+        Rubric(score_range=(10,10), expected_outcome="Flawlessly professional in every turn."),
+    ]
+)
+```
+
+</Case>
+
+<Case id="typescript">
+
+```typescript
+// ...
+
+const professionalismMetric = new ConversationalGEval({
+  name: "Professionalism",
+  criteria: "Determine whether the assistant has acted professionally based on the content.",
+  evaluationParams: [MultiTurnParams.CONTENT],
+  rubric: [
+    { scoreRange: [0, 2], expectedOutcome: "Rude or dismissive in at least one turn." },
+    { scoreRange: [3, 6], expectedOutcome: "Mostly professional with occasional lapses." },
+    { scoreRange: [7, 9], expectedOutcome: "Professional throughout, minor informality." },
+    { scoreRange: [10, 10], expectedOutcome: "Flawlessly professional in every turn." },
+  ],
+});
+```
+
+</Case>
+
+</Switch>
+
+</Tab>
+</Tabs>
+
+Note that <Term py="score_range" ts="scoreRange"/> ranges from **0 - 10, inclusive** and different `Rubric`s must not have overlapping <Term py="score_range" ts="scoreRange"/>s. You can also specify <Term py="score_range" ts="scoreRange"/>s where the start and end values are the same to represent a single score.
+
+:::tip
+This is an optional improvement done by `deepeval` in addition to the original implementation in the G-Eval paper.
+:::
+
+### Within components
+
+You can also run `GEval` within nested components for [component-level](/docs/evaluation-component-level-llm-evals) evaluation. This only works for single-turn G-Eval.
+
+<Switch>
+
+<Case id="python">
+
+```python
+from deepeval.dataset import EvaluationDataset, Golden
+from deepeval.tracing import observe, update_current_span
+...
+
+@observe(metrics=[correctness_metric])
+def inner_component():
+    # Component can be anything from an LLM call, retrieval, agent, tool use, etc.
+    update_current_span(test_case=LLMTestCase(input="...", actual_output="..."))
+    return
+
+@observe
+def llm_app(input: str):
+    inner_component()
+    return
+
+dataset = EvaluationDataset(goldens=[Golden(input="Hi!")])
+for golden in dataset.evals_iterator():
+    llm_app(golden.input)
+```
+
+</Case>
+
+<Case id="typescript">
+
+```typescript
+import { EvaluationDataset, Golden } from "deepeval/dataset";
+import { observe, updateCurrentSpan } from "deepeval/tracing";
+// ...
+
+const innerComponent = observe({
+  metrics: [correctnessMetric],
+  fn: async () => {
+    // Component can be anything from an LLM call, retrieval, agent, tool use, etc.
+    updateCurrentSpan({
+      testCase: new LLMTestCase({ input: "...", actualOutput: "..." }),
+    });
+  },
+});
+
+const llmApp = observe({
+  fn: async (input: string) => {
+    await innerComponent();
+  },
+});
+
+const dataset = new EvaluationDataset({
+  goldens: [new Golden({ input: "Hi!" })],
+});
+for await (const golden of dataset.evalsIterator()) {
+  await llmApp((golden as Golden).input);
+}
+```
+
+</Case>
+
+</Switch>
+
+### Evaluating the trajectory
+
+When you leave out <Term py="evaluation_params" ts="evaluationParams"/>, single-turn `GEval` judges the whole trace, not individual test case fields. That covers every agent, LLM, tool, and retriever span with its inputs and outputs. Use it for criteria about _how_ your app reached its answer, such as tool choice, the arguments passed, or whether retrieved results were used correctly.
+
+<Switch>
+
+<Case id="python">
+
+```python
+from deepeval.dataset import EvaluationDataset, Golden
+from deepeval.tracing import observe
+from deepeval.metrics import GEval
+
+trajectory = GEval(
+    name="Tool Use",
+    criteria="Did the agent call the right tool with the right arguments, and does its final answer match what the tool returned?",
+)
+
+@observe(type="tool")
+def order_lookup(order_id: str):
+    return {"status": "in_transit"}
+
+@observe(type="agent")
+def support_agent(input: str):
+    return f"Your order is {order_lookup('1234')['status']}."
+
+dataset = EvaluationDataset(goldens=[Golden(input="Where is my order #1234?")])
+for golden in dataset.evals_iterator(metrics=[trajectory]):
+    support_agent(golden.input)
+```
+
+</Case>
+
+<Case id="typescript">
+
+```typescript
+import { EvaluationDataset, Golden } from "deepeval/dataset";
+import { observe } from "deepeval/tracing";
+import { GEval } from "deepeval/metrics";
+
+const trajectory = new GEval({
+  name: "Tool Use",
+  criteria:
+    "Did the agent call the right tool with the right arguments, and does its final answer match what the tool returned?",
+});
+
+const orderLookup = observe({
+  type: "tool",
+  fn: async (orderId: string) => ({ status: "in_transit" }),
+});
+
+const supportAgent = observe({
+  type: "agent",
+  fn: async (input: string) => {
+    const { status } = await orderLookup("1234");
+    return `Your order is ${status}.`;
+  },
+});
+
+const dataset = new EvaluationDataset({
+  goldens: [new Golden({ input: "Where is my order #1234?" })],
+});
+for await (const golden of dataset.evalsIterator({ metrics: [trajectory] })) {
+  await supportAgent((golden as Golden).input);
+}
+```
+
+</Case>
+
+</Switch>
+
+Passed to <Term py="evals_iterator" ts="evalsIterator"/>, the metric judges the full trace. Attached to a component's `metrics` [within components](#within-components), it judges only that span and its children.
+
+:::note
+Trajectory mode needs a trace. Running it on a plain `LLMTestCase`, through `evaluate()` or `measure()`, raises a `MissingTestCaseParamsError`. The same applies to a `GEval` inside a `DAGMetric`, where no trace is passed down. A trajectory-mode `GEval` also can't be uploaded to Confident AI yet.
+:::
+
+### As a standalone
+
+You can also run G-Eval on a single test case as a standalone, one-off execution.
+
+<Tabs items={["Single-Turn", "Multi-Turn"]}>
+<Tab value="Single-Turn">
+
+<Switch>
+
+<Case id="python">
+
+```python
+...
+
+correctness_metric.measure(test_case)
+print(correctness_metric.score, correctness_metric.reason)
+```
+
+</Case>
+
+<Case id="typescript">
+
+```typescript
+// ...
+
+await correctnessMetric.measure(testCase);
+console.log(correctnessMetric.score, correctnessMetric.reason);
+```
+
+</Case>
+
+</Switch>
+
+</Tab>
+<Tab value="Multi-Turn">
+
+<Switch>
+
+<Case id="python">
+
+```python
+...
+
+professionalism_metric.measure(convo_test_case)
+print(professionalism_metric.score, professionalism_metric.reason)
+```
+
+</Case>
+
+<Case id="typescript">
+
+```typescript
+// ...
+
+await professionalismMetric.measure(convoTestCase);
+console.log(professionalismMetric.score, professionalismMetric.reason);
+```
+
+</Case>
+
+</Switch>
+
+</Tab>
+</Tabs>
+
+:::caution
+This is great for debugging or if you wish to build your own evaluation pipeline, but you will **NOT** get the benefits (testing reports, Confident AI platform) and all the optimizations (speed, caching, computation) the `evaluate()` function or `deepeval test run` offers.
+:::
+
+## What is G-Eval?
+
+G-Eval is a framework originally from the [paper](https://arxiv.org/abs/2303.16634) "NLG Evaluation using GPT-4 with Better Human Alignment" that uses LLMs to evaluate LLM outputs (aka. LLM-Evals), and is one the best ways to create task-specific metrics.
+
+The G-Eval algorithm first generates a series of evaluation steps for chain of thoughts (CoTs) prompting before using the generated steps to determine the final score via a "form-filling paradigm" (which is just a fancy way of saying G-Eval requires different test case parameters for evaluation depending on the generated steps).
+
+<ImageDisplayer src={ASSETS.gEvalAlgorithm} alt="G-Eval Algorithm" />
+
+After generating a series of evaluation steps, G-Eval will:
+
+1. Create prompt by concatenating the evaluation steps with all the parameters in an `LLMTestCase` that is supplied to <Term py="evaluation_params" ts="evaluationParams"/>. For `ConversationalGEval`, the parameters are pulled from every `Turn` in the `ConversationalTestCase` and laid out as the full conversation history.
+2. At the end of the prompt, ask it to generate a score between 1–5, where 5 is better than 1.
+3. Take the probabilities of the output tokens from the LLM to normalize the score and take their weighted summation as the final result.
+
+:::info
+We highly recommend everyone to read [this article](https://confident-ai.com/blog/llm-evaluation-metrics-everything-you-need-for-llm-evaluation) on LLM evaluation metrics. It's written by the founder of `deepeval` and explains the rationale and algorithms behind the `deepeval` metrics, including G-Eval.
+:::
+
+Here are the results from the paper, which shows how G-Eval outperforms all traditional, non-LLM evals that were mentioned earlier in this article:
+
+<ImageDisplayer src={ASSETS.gEvalResults} alt="G-Eval Results" />
+
+:::note
+Although G-Eval is great it many ways as a custom, task-specific metric, it is **NOT** deterministic. If you're looking for more fine-grained, deterministic control over your metric scores, you should be using the [`DAGMetric`](/docs/metrics-dag) instead.
+:::
+
+## How Is It Calculated?
+
+Since G-Eval is a two-step algorithm that generates chain of thoughts (CoTs) for better evaluation, in `deepeval` this means first generating a series of <Term py="evaluation_steps" ts="evaluationSteps"/> using CoT based on the given `criteria`, before using the generated steps to determine the final score using the parameters presented in the test case.
+
+<div style={{textAlign: 'center', margin: "2rem 0"}}>
+
+```mermaid
+%%{init: {'flowchart': {'nodeSpacing': 20, 'rankSpacing': 40, 'fontSize': 11}}}%%
+flowchart LR
+    B{Are `evaluation_steps`<br>provided?}
+    B -->|Yes| E[Create prompt with test case<br>`evaluation_params`]
+    B -->|No| C[Generate steps<br>based on `criteria`]
+    C --> E
+    E --> F[Generate score<br>1-10]
+    F --> G[Normalize using<br>token probabilities and divide by 10]
+    G --> H[Final score<br>0-1]
+```
+
+</div>
+
+When you provide <Term py="evaluation_steps" ts="evaluationSteps"/>, the metric skips the first step and uses the provided steps to determine the final score instead, make it more reliable across different runs. If you don't have a clear <Term py="evaluation_steps" ts="evaluationSteps"/>s, what we've found useful is to first write a `criteria` which can be extremely short, and use the <Term py="evaluation_steps" ts="evaluationSteps"/> generated by G-Eval for subsequent evaluation and fine-tuning of criteria.
+
+The only difference between single-turn and multi-turn G-Eval is what the judge sees: single-turn presents the fields of one test case, while multi-turn presents the **entire conversation history**. Both return a single score and reason; multi-turn G-Eval does not score turns individually.
+
+:::tip[Did Your Know?]
+In the original G-Eval paper, the authors used the probabilities of the LLM output tokens to normalize the score by calculating a weighted summation.
+
+This step was introduced in the paper because it minimizes bias in LLM scoring. **This normalization step is automatically handled by `deepeval` by default** (unless you're using a custom model).
+
+<details>
+
+<summary> See how to implement your cusotm `logprobs`</summary>
+
+<Switch>
+
+<Case id="python">
+
+To enable weighted summation for a custom model, implement `a_generate_raw_response` (and optionally `generate_raw_response`) on your `DeepEvalBaseLLM` subclass. The method must return a tuple of `(ChatCompletion, cost)` where the `ChatCompletion` object contains `logprobs` in its response:
+
+```python
+from openai.types.chat import ChatCompletion
+
+class MyCustomModel(DeepEvalBaseLLM):
+    async def a_generate_raw_response(self, prompt: str, **kwargs) -> tuple:
+        # Call your LLM with logprobs enabled (top_logprobs is passed via kwargs)
+        response: ChatCompletion = await self.client.chat.completions.create(
+            model=self.model_name,
+            messages=[{"role": "user", "content": prompt}],
+            logprobs=True,
+            top_logprobs=kwargs.get("top_logprobs", 5),
+        )
+        cost = 0  # replace with actual cost if available
+        return response, cost
+```
+
+`deepeval` will automatically use the `logprobs` in the returned `ChatCompletion` to compute the weighted summation score. If `a_generate_raw_response` is not implemented, `deepeval` falls back to the raw integer score from `a_generate`.
+
+</Case>
+
+<Case id="typescript">
+
+To enable weighted summation for a custom model, implement the optional `generateRaw` method on your `DeepEvalBaseLLM` subclass. It returns a `RawGenerationResult`, so you normalize your provider's response into `logProbs` yourself rather than handing back the provider's own object:
+
+```typescript
+import { DeepEvalBaseLLM, type RawGenerationResult } from "deepeval/models";
+
+class MyCustomModel extends DeepEvalBaseLLM {
+  async generateRaw(
+    prompt: string,
+    options?: { topLogprobs?: number },
+  ): Promise<RawGenerationResult> {
+    // Call your LLM with logprobs enabled
+    const response = await this.client.chat.completions.create({
+      model: this.getModelName(),
+      messages: [{ role: "user", content: prompt }],
+      logprobs: true,
+      top_logprobs: options?.topLogprobs ?? 5,
+    });
+    const choice = response.choices[0];
+    return {
+      output: choice.message.content ?? "",
+      cost: null, // replace with actual cost if available
+      logProbs: choice.logprobs?.content?.map((token) => ({
+        token: token.token,
+        logprob: token.logprob,
+        topLogProbs: token.top_logprobs,
+      })),
+    };
+  }
+}
+```
+
+`deepeval` will automatically use `logProbs` to compute the weighted summation score. Because `generateRaw` is optional, leaving it off is how the metric learns your provider cannot do log probabilities — it then falls back to the raw integer score from `generate`.
+
+</Case>
+
+</Switch>
+
+</details>
+
+:::
+
+## Examples
+
+`deepeval` runs more than **10 million G-Eval metrics a day** (we wrote a blog about it [here](/blog/top-5-geval-use-cases)), and in this section we will list out the two most common use cases we see. The rest, each in single-turn and multi-turn form, live in the [G-Eval examples guide](/guides/guides-g-eval-examples).
+
+:::caution
+Please do not directly copy and paste examples below without first assessing their fit for your use case.
+:::
+
+### Answer Correctness
+
+Answer correctness is the most used G-Eval metric of all and usually involves comparing the <Term py="actual_output" ts="actualOutput"/> to the <Term py="expected_output" ts="expectedOutput"/>, which makes it a reference-based metric.
+
+<Switch>
+
+<Case id="python">
+
+```python
+from deepeval.test_case import SingleTurnParams
+from deepeval.metrics import GEval
+
+correctness = GEval(
+    name="Correctness",
+    evaluation_steps=[
+        "Check whether the facts in 'actual output' contradicts any facts in 'expected output'",
+        "You should also heavily penalize omission of detail",
+        "Vague language, or contradicting OPINIONS, are OK"
+    ],
+    evaluation_params=[SingleTurnParams.ACTUAL_OUTPUT, SingleTurnParams.EXPECTED_OUTPUT],
+)
+```
+
+</Case>
+
+<Case id="typescript">
+
+```typescript
+import { SingleTurnParams } from "deepeval/test-case";
+import { GEval } from "deepeval/metrics";
+
+const correctness = new GEval({
+  name: "Correctness",
+  evaluationSteps: [
+    "Check whether the facts in 'actual output' contradicts any facts in 'expected output'",
+    "You should also heavily penalize omission of detail",
+    "Vague language, or contradicting OPINIONS, are OK",
+  ],
+  evaluationParams: [SingleTurnParams.ACTUAL_OUTPUT, SingleTurnParams.EXPECTED_OUTPUT],
+});
+```
+
+</Case>
+
+</Switch>
+
+You'll notice that <Term py="evaluation_steps" ts="evaluationSteps"/> are provided instead of `criteria` since it provides more reliability in how the metric is scored. For the full example, [click here](/blog/top-5-geval-use-cases#answer-correctness).
+
+### Coherence
+
+Coherence is usually a referenceless metric that covers several criteria such as fluency, consistency, and clarify. Below is an example of using `GEval` to assess clarify in the coherence spectrum of criteria:
+
+<Switch>
+
+<Case id="python">
+
+```python
+from deepeval.test_case import SingleTurnParams
+from deepeval.metrics import GEval
+
+clarity = GEval(
+    name="Clarity",
+    evaluation_steps=[
+        "Evaluate whether the response uses clear and direct language.",
+        "Check if the explanation avoids jargon or explains it when used.",
+        "Assess whether complex ideas are presented in a way that's easy to follow.",
+        "Identify any vague or confusing parts that reduce understanding."
+    ],
+    evaluation_params=[SingleTurnParams.ACTUAL_OUTPUT],
+)
+```
+
+</Case>
+
+<Case id="typescript">
+
+```typescript
+import { SingleTurnParams } from "deepeval/test-case";
+import { GEval } from "deepeval/metrics";
+
+const clarity = new GEval({
+  name: "Clarity",
+  evaluationSteps: [
+    "Evaluate whether the response uses clear and direct language.",
+    "Check if the explanation avoids jargon or explains it when used.",
+    "Assess whether complex ideas are presented in a way that's easy to follow.",
+    "Identify any vague or confusing parts that reduce understanding.",
+  ],
+  evaluationParams: [SingleTurnParams.ACTUAL_OUTPUT],
+});
+```
+
+</Case>
+
+</Switch>
+
+Full example and advice on best practices available [here.](/blog/top-5-geval-use-cases#coherence)
+
+For tonality, safety, and custom RAG metrics, see the [G-Eval examples guide](/guides/guides-g-eval-examples).
+
+## Customize Your Template
+
+Since `deepeval`'s G-Eval is evaluated by LLM-as-a-judge, you can likely improve your metric accuracy by [overriding `deepeval`'s default prompt templates](/docs/metrics-introduction#customize-metric-prompts). This is especially helpful if:
+
+- You're using a [custom evaluation LLM](/guides/guides-using-custom-llms), especially for smaller models that have weaker instruction following capabilities.
+- You want to customize the examples used in the default `GEvalTemplate` to better align with your expectations.
+
+:::tip
+You can learn what the default templates look like on GitHub: [`GEvalTemplate`](https://github.com/confident-ai/deepeval/blob/main/deepeval/metrics/g_eval/template.py) and [`ConversationalGEvalTemplate`](https://github.com/confident-ai/deepeval/blob/main/deepeval/metrics/conversational_g_eval/template.py). Read the [How Is It Calculated](#how-is-it-calculated) section above to understand how you can tailor them to your needs.
+:::
+
+Here's a quick example of how you can override the process of generating evaluation steps in the G-Eval algorithm:
+
+<Tabs items={["Single-Turn", "Multi-Turn"]}>
+<Tab value="Single-Turn">
+
+<Switch>
+
+<Case id="python">
+
+```python
+from deepeval.metrics.g_eval import GEvalTemplate
+from deepeval.metrics import GEval
+import textwrap
+
+# Define custom template
+class CustomGEvalTemplate(GEvalTemplate):
+    @staticmethod
+    def generate_evaluation_steps(parameters: str, criteria: str):
+        return textwrap.dedent(
+            f"""
+            You are given evaluation criteria for assessing {parameters}. Based on the criteria,
+            produce 3-4 clear steps that explain how to evaluate the quality of {parameters}.
+
+            Criteria:
+            {criteria}
+
+            Return JSON only, in this format:
+            {{
+                "steps": [
+                    "Step 1",
+                    "Step 2",
+                    "Step 3"
+                ]
+            }}
+
+            JSON:
+            """
+        )
+
+# Inject custom template to metric
+metric = GEval(evaluation_template=CustomGEvalTemplate)
+metric.measure(...)
+```
+
+</Case>
+
+<Case id="typescript">
+
+```typescript
+import { SingleTurnParams } from "deepeval/test-case";
+import { GEval } from "deepeval/metrics";
+
+// Inject custom template to metric
+const metric = new GEval({
+  name: "Correctness",
+  criteria: "...",
+  evaluationParams: [SingleTurnParams.ACTUAL_OUTPUT],
+  evaluationTemplate: {
+    generateEvaluationSteps: ({ parameters, criteria }) =>
+      `You are given evaluation criteria for assessing ${parameters}. Based on the criteria,
+produce 3-4 clear steps that explain how to evaluate the quality of ${parameters}.
+
+Criteria:
+${criteria}
+
+Return JSON only, in this format:
+{
+    "steps": [
+        "Step 1",
+        "Step 2",
+        "Step 3"
+    ]
+}
+
+JSON:
+`,
+  },
+});
+await metric.measure(testCase);
+```
+
+Each override receives the template's variables as its first argument, and the default renderer as its second, so you can extend a prompt instead of replacing it:
+
+```typescript
+const metric = new GEval({
+  name: "Correctness",
+  criteria: "...",
+  evaluationParams: [SingleTurnParams.ACTUAL_OUTPUT],
+  evaluationTemplate: {
+    generateEvaluationSteps: (vars, renderDefault) =>
+      `${renderDefault(vars)}\n\nKeep each step to a single sentence.`,
+  },
+});
+```
+
+</Case>
+
+</Switch>
+
+</Tab>
+<Tab value="Multi-Turn">
+
+<Switch>
+
+<Case id="python">
+
+```python
+from deepeval.metrics.conversational_g_eval import ConversationalGEvalTemplate
+from deepeval.metrics import ConversationalGEval
+import textwrap
+
+# Define custom template
+class CustomConvoGEvalTemplate(ConversationalGEvalTemplate):
+    @staticmethod
+    def generate_evaluation_steps(parameters: str, criteria: str):
+        return textwrap.dedent(
+            f"""
+            You are given criteria for evaluating a conversation based on the following parameters: {parameters}.
+            Write 3-4 clear and concise evaluation steps that describe how to judge the quality of each turn and the conversation overall.
+
+            Criteria:
+            {criteria}
+
+            Return JSON only in the format:
+            {{
+                "steps": [
+                    "Step 1",
+                    "Step 2",
+                    "Step 3"
+                ]
+            }}
+
+            JSON:
+            """
+        )
+
+# Inject custom template to metric
+metric = ConversationalGEval(evaluation_template=CustomConvoGEvalTemplate)
+metric.measure(...)
+```
+
+</Case>
+
+<Case id="typescript">
+
+```typescript
+import { MultiTurnParams } from "deepeval/test-case";
+import { ConversationalGEval } from "deepeval/metrics";
+
+// Inject custom template to metric
+const metric = new ConversationalGEval({
+  name: "Professionalism",
+  criteria: "...",
+  evaluationParams: [MultiTurnParams.CONTENT],
+  evaluationTemplate: {
+    generateEvaluationSteps: ({ parameters, criteria }) =>
+      `You are given criteria for evaluating a conversation based on the following parameters: ${parameters}.
+Write 3-4 clear and concise evaluation steps that describe how to judge the quality of each turn and the conversation overall.
+
+Criteria:
+${criteria}
+
+Return JSON only in the format:
+{
+    "steps": [
+        "Step 1",
+        "Step 2",
+        "Step 3"
+    ]
+}
+
+JSON:
+`,
+  },
+});
+await metric.measure(convoTestCase);
+```
+
+Each override receives the template's variables as its first argument, and the default renderer as its second, so you can extend a prompt instead of replacing it:
+
+```typescript
+const metric = new ConversationalGEval({
+  name: "Professionalism",
+  criteria: "...",
+  evaluationParams: [MultiTurnParams.CONTENT],
+  evaluationTemplate: {
+    generateEvaluationSteps: (vars, renderDefault) =>
+      `${renderDefault(vars)}\n\nWeigh the assistant's final turn most heavily.`,
+  },
+});
+```
+
+</Case>
+
+</Switch>
+
+</Tab>
+</Tabs>
+
+## FAQs
+
+<FAQs
+  qas={[
+    {
+      question: "Why are my G-Eval scores inconsistent between runs?",
+      answer: (
+        <>
+          Usually relying on <code>criteria</code> alone, which makes the metric
+          regenerate fresh CoT steps every run. Provide
+          explicit <Term py="evaluation_steps" ts="evaluationSteps"/> to skip that, and add a{" "}
+          <a href="/docs/metrics-llm-evals#rubric">rubric</a> or{" "}
+          <Term py="strict_mode" ts="strictMode"/> to tighten scoring.
+        </>
+      ),
+    },
+    {
+      question: "Should I define `criteria` or evaluation steps?",
+      answer: (
+        <>
+          <code>criteria</code> when exploring and you want G-Eval to
+          draft the steps; <Term py="evaluation_steps" ts="evaluationSteps"/> for reproducible,
+          controllable scores. Start with a short <code>criteria</code>, inspect
+          the generated steps, then lock them in. Pass only one, never both.
+        </>
+      ),
+    },
+    {
+      question: "When should I use the multi-turn version instead of single-turn?",
+      answer: (
+        <>
+          Use <code>ConversationalGEval</code> when your criteria spans a whole{" "}
+          <a href="/docs/evaluation-multiturn-test-cases">ConversationalTestCase</a>{" "}
+          — tone consistency, memory of earlier context, recovery after a bad
+          turn. Plain <code>GEval</code> sees only one <code>input</code>/
+          <Term py="actual_output" ts="actualOutput"/> pair and can't reason across
+          turns. Neither class accepts the other's test case type.
+        </>
+      ),
+    },
+    {
+      question: "Does the multi-turn version score each turn separately or the whole conversation?",
+      answer: (
+        <>
+          The whole conversation. <code>ConversationalGEval</code> considers the
+          entire <code>turns</code> history and returns a single score and
+          reason, not one per turn.
+        </>
+      ),
+    },
+    {
+      question:
+        "When should I reach for G-Eval instead of DAG or a custom metric?",
+      answer: (
+        <>
+          G-Eval for subjective, use-case-specific criteria
+          (correctness, tone, safety) where some non-determinism is fine. Use{" "}
+          <a href="/docs/metrics-dag">DAGMetric</a> for deterministic, rule-based
+          scoring, and a <a href="/docs/metrics-custom">custom metric</a> to skip
+          the LLM or combine several metrics.
+        </>
+      ),
+    },
+    {
+      question: "Should I add every test case parameter to evaluation params?",
+      answer: (
+        <>
+          No. Only include parameters referenced in your{" "}
+          <code>criteria</code>/<Term py="evaluation_steps" ts="evaluationSteps"/>. Unused params
+          (e.g. <Term py="expected_output" ts="expectedOutput"/> your steps never mention, or{" "}
+          <code>MultiTurnParams.TOOLS_CALLED</code> when tool usage isn't part of the
+          criteria) feed the judge irrelevant context and degrade the score.
+        </>
+      ),
+    },
+    {
+      question: "How do I stop G-Eval from clustering scores in the middle?",
+      answer: (
+        <>
+          Pass a list of <code>Rubric</code>s via the{" "}
+          <a href="/docs/metrics-llm-evals#rubric">rubric</a> argument to confine
+          the judge to specific score bands (non-overlapping{" "}
+          <Term py="score_range" ts="scoreRange"/>s within 0-10). For pass/fail, set{" "}
+          <Term py="strict_mode=True" ts="strictMode: true"/> to force a binary 1 or 0.
+        </>
+      ),
+    },
+  ]}
+/>

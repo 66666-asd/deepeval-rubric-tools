@@ -1,0 +1,5 @@
+case_id,criterion_id,criterion,weight,max_score,model_a_score,model_b_score,notes
+demo-001,accuracy,Correct result,3,4,4,2,Synthetic example only
+demo-001,evidence,Evidence is traceable,1,2,1,2,Synthetic example only
+demo-002,coverage,All required points covered,1,5,3,4,Synthetic example only
+demo-002,clarity,Clear explanation,1,2,2,1,Synthetic example only

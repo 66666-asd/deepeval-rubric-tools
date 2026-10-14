@@ -1,0 +1,42 @@
+# Downstream CI: no upstream publishing, provider keys, or model API calls.
+name: Offline rubric checks
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      DEEPEVAL_TELEMETRY_OPT_OUT: "1"
+      DEEPEVAL_DISABLE_DOTENV: "1"
+      DEEPEVAL_UPDATE_WARNING_OPT_IN: "0"
+      CONFIDENT_OPEN_BROWSER: "0"
+      PYTEST_DISABLE_PLUGIN_AUTOLOAD: "1"
+      PYTHONUTF8: "1"
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install source and check tools
+        run: python -m pip install -e . ruff pytest-socket
+      - name: Check downstream lint and formatting
+        run: |
+          python -m ruff check --target-version py39 deepeval/rubric.py deepeval/cli/rubric.py tests/test_core/test_rubric.py
+          python -m ruff format --check deepeval/rubric.py deepeval/cli/rubric.py tests/test_core/test_rubric.py
+      - name: Run offline regressions
+        run: >-
+          python -m pytest -q -o addopts=
+          -p pytest_asyncio.plugin -p pytest_socket --disable-socket
+          tests/test_core/test_rubric.py tests/test_core/test_cli
+          tests/test_core/test_run
+      - name: Check dependency consistency
+        run: python -m pip check

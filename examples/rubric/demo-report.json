@@ -1,0 +1,103 @@
+{
+  "schema_version": 1,
+  "source": "examples/rubric/paired_scores.csv",
+  "models": {
+    "a": "Baseline",
+    "b": "Candidate"
+  },
+  "method": "weighted normalized criteria; equal-weight case macro mean",
+  "score_range": [
+    0,
+    100
+  ],
+  "tie_tolerance_percentage_points": 1e-09,
+  "case_count": 2,
+  "criterion_count": 4,
+  "model_a_score": 83.75,
+  "model_b_score": 63.75,
+  "delta_percentage_points": 20.0,
+  "winner": "Baseline",
+  "case_wins": {
+    "Baseline": 2,
+    "Candidate": 0,
+    "tie": 0
+  },
+  "cases": [
+    {
+      "case_id": "demo-001",
+      "criterion_count": 2,
+      "model_a_score": 87.5,
+      "model_b_score": 62.5,
+      "delta_percentage_points": 25.0,
+      "winner": "Baseline",
+      "criteria": [
+        {
+          "criterion_id": "accuracy",
+          "criterion": "Correct result",
+          "weight": 3.0,
+          "weight_share": 0.75,
+          "max_score": 4.0,
+          "model_a_score": 4.0,
+          "model_b_score": 2.0,
+          "model_a_contribution": 75.0,
+          "model_b_contribution": 37.5,
+          "delta_percentage_points": 50.0,
+          "winner": "Baseline",
+          "notes": "Synthetic example only"
+        },
+        {
+          "criterion_id": "evidence",
+          "criterion": "Evidence is traceable",
+          "weight": 1.0,
+          "weight_share": 0.25,
+          "max_score": 2.0,
+          "model_a_score": 1.0,
+          "model_b_score": 2.0,
+          "model_a_contribution": 12.5,
+          "model_b_contribution": 25.0,
+          "delta_percentage_points": -50.0,
+          "winner": "Candidate",
+          "notes": "Synthetic example only"
+        }
+      ]
+    },
+    {
+      "case_id": "demo-002",
+      "criterion_count": 2,
+      "model_a_score": 80.0,
+      "model_b_score": 65.0,
+      "delta_percentage_points": 15.0,
+      "winner": "Baseline",
+      "criteria": [
+        {
+          "criterion_id": "coverage",
+          "criterion": "All required points covered",
+          "weight": 1.0,
+          "weight_share": 0.5,
+          "max_score": 5.0,
+          "model_a_score": 3.0,
+          "model_b_score": 4.0,
+          "model_a_contribution": 30.0,
+          "model_b_contribution": 40.0,
+          "delta_percentage_points": -20.0,
+          "winner": "Candidate",
+          "notes": "Synthetic example only"
+        },
+        {
+          "criterion_id": "clarity",
+          "criterion": "Clear explanation",
+          "weight": 1.0,
+          "weight_share": 0.5,
+          "max_score": 2.0,
+          "model_a_score": 2.0,
+          "model_b_score": 1.0,
+          "model_a_contribution": 50.0,
+          "model_b_contribution": 25.0,
+          "delta_percentage_points": 50.0,
+          "winner": "Baseline",
+          "notes": "Synthetic example only"
+        }
+      ]
+    }
+  ]
+}

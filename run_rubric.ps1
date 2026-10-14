@@ -3,7 +3,8 @@ param(
     [string]$OutputPath,
     [string]$ModelA = 'model_a',
     [string]$ModelB = 'model_b',
-    [string]$Sheet
+    [string]$Sheet,
+    [string]$Manifest
 )
 
 $ErrorActionPreference = 'Stop'
@@ -31,6 +32,7 @@ try {
     $cliArgs = @('rubric', 'compare', $Scores, '--model-a', $ModelA, '--model-b', $ModelB)
     if ($OutputPath) { $cliArgs += @('--output', $OutputPath) }
     if ($Sheet) { $cliArgs += @('--sheet', $Sheet) }
+    if ($Manifest) { $cliArgs += @('--manifest', $Manifest) }
     & $command @cliArgs
     $resultCode = $LASTEXITCODE
 } finally {

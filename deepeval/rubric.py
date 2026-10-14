@@ -277,14 +277,62 @@ def compare_rubric_file(
     model_b: str = "model_b",
     *,
     sheet: str | None = None,
+    manifest: str | Path | None = None,
 ) -> dict[str, Any]:
     """Compare CSV or XLSX scores without changing the scoring convention."""
-    report = _compare_scores(
-        load_rubric_scores(path, sheet), path, model_a, model_b
-    )
+    rows = load_rubric_scores(path, sheet)
+    manifest_check = None
+    if manifest is not None:
+        manifest_check = validate_rubric_manifest(rows, manifest)
+    report = _compare_scores(rows, path, model_a, model_b)
     if sheet is not None:
         report["source_sheet"] = sheet
+    if manifest_check is not None:
+        report["manifest_check"] = manifest_check
     return report
+
+
+def validate_rubric_manifest(
+    rows: list[RubricScore], path: str | Path
+) -> dict[str, Any]:
+    """Require an exact match to an independently supplied CSV key manifest.
+
+    No scores or scoring policy are inferred from the manifest. A manifest
+    constructed from the score file cannot detect jointly omitted criteria.
+    """
+    if Path(path).suffix.lower() != ".csv":
+        raise RubricValidationError("Manifest must be a UTF-8 CSV file.")
+    columns = ("case_id", "criterion_id")
+    expected = set()
+    for line, record in _read_csv(path, required=columns, optional=()):
+        for column in columns:
+            if not record[column]:
+                raise RubricValidationError(
+                    f"Manifest line {line}: {column} is required."
+                )
+        key = (record["case_id"], record["criterion_id"])
+        if key in expected:
+            raise RubricValidationError(
+                f"Manifest line {line}: duplicate case/criterion {key!r}."
+            )
+        expected.add(key)
+    if not expected:
+        raise RubricValidationError("Manifest must contain at least one key.")
+    actual = {(row.case_id, row.criterion_id) for row in rows}
+    missing = sorted(expected - actual)
+    unexpected = sorted(actual - expected)
+    if missing or unexpected:
+        raise RubricValidationError(
+            "Manifest mismatch (first 20 keys shown per group): "
+            f"missing={len(missing)} {missing[:20]!r}; "
+            f"unexpected={len(unexpected)} {unexpected[:20]!r}."
+        )
+    return {
+        "source": str(Path(path)),
+        "status": "passed",
+        "expected_criterion_count": len(expected),
+        "matched_criterion_count": len(actual),
+    }
 
 
 def _compare_scores(rows, path, model_a, model_b):

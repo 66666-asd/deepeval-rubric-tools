@@ -34,6 +34,12 @@ def compare_command(
             help="Excel worksheet name; required for multiple sheets."
         ),
     ] = None,
+    manifest: Annotated[
+        Optional[Path],  # noqa: FA100 - Typer evaluates types on Python 3.9.
+        typer.Option(
+            help="Independent CSV of every expected case_id/criterion_id."
+        ),
+    ] = None,
 ):
     """Check every row, then report per-case scores and an overall comparison.
 
@@ -44,7 +50,19 @@ def compare_command(
     try:
         if output is not None and output.resolve() == scores.resolve():
             raise RubricValidationError("Output must not replace the input.")
-        report = compare_rubric_file(scores, model_a, model_b, sheet=sheet)
+        if (
+            output is not None
+            and manifest is not None
+            and output.resolve() == manifest.resolve()
+        ):
+            raise RubricValidationError("Output must not replace the manifest.")
+        report = compare_rubric_file(
+            scores,
+            model_a,
+            model_b,
+            sheet=sheet,
+            manifest=manifest,
+        )
         payload = json.dumps(
             report, ensure_ascii=False, indent=2, allow_nan=False
         )

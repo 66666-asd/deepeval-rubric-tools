@@ -67,3 +67,18 @@
   booleans, malformed ZIPs, and prevention of partial reports.
 - XLSX import is a single implemented feature; tests and documentation are
   committed together with implementation, not split to inflate commit counts.
+
+## Complete criterion manifest verification - 2026-10-14
+
+- Combined rubric, XLSX, manifest, CLI and test-run regression set:
+  **184 passed, 2 existing upstream collection warnings in 9.34 seconds**.
+- Tests run with sockets disabled. Dependency consistency, Ruff lint, and
+  formatting checks pass for all downstream Python files.
+- Verified matching inventories, missing whole cases, jointly omitted keys,
+  unexpected keys, duplicate/empty/ragged manifests, reordered BOM headers,
+  both CSV and XLSX score inputs, and output protection on validation failure.
+- PowerShell launcher syntax is valid. The bundled manifest matches all four
+  synthetic criteria, preserves A=83.75/B=63.75, and reports `passed`.
+- Two real feature units are implemented with tests and documentation, not a
+  target number of commits. Remote publication is a separate operation and
+  no result here claims repository admission or GitHub CI success.

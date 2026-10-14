@@ -59,6 +59,23 @@ Excel 第一行为与 CSV 相同的英文列名。只支持 `.xlsx`，不支持 
 文件限制为 50 MiB，解压总量不超过 200 MiB、10000 个 ZIP 条目，最多 100000 行数据。
 导入只读，不会修改源工作簿；不解析外部链接。
 
+## 完整评分点清单核对
+
+当两个模型都缺少同一个评分点时，仅检查评分表无法发现遗漏。
+现在可以从独立的题库/Rubric 定义提供完整清单，通过 `-Manifest` 核对：
+
+```powershell
+.\run_rubric.ps1 -Manifest .\examples\rubric\expected_criteria.csv
+.\run_rubric.ps1 -Scores C:\data\scores.xlsx -Sheet Scores -Manifest C:\data\expected.csv -OutputPath C:\data\checked-report.json
+```
+
+清单是 UTF-8 CSV，仅两列 `case_id,criterion_id`，每个组合必须唯一且非空。
+清单顺序不限；缺少任何条目、整题，或者评分表出现清单外条目，都报错且不生成报告。
+错误信息列出缺失/额外条目数量及各自前 20 个编号，便于定位。
+通过后报告新增 `manifest_check` 记录清单来源和核对数量，评分公式保持不变。
+清单应来自独立的完整题库，不能从待检查的评分表直接生成，否则无法发现双方共同漏项。
+不提供清单时沿用原逻辑，不宣称已验证评分点全集。
+
 ## CSV 格式与评分口径
 
 必填列如下，可增加 `notes` 备注列；不接受其他列，避免列名拼错后静默丢失数据。
@@ -83,7 +100,8 @@ Excel 第一行为与 CSV 相同的英文列名。只支持 `.xlsx`，不支持 
 权重仅在同一题内有效，不跨题加权。不同题的评分点数可以不同。
 同一 CSV 行里的 A/B 必须针对相同题目和同一评分标准。
 不支持负权重、扣分型条目、N/A、漏评或多评审员汇总；此类数据须先明确口径。
-本工具不能发现整题或整条评分点被双方同时漏掉，需另有完整题目清单才能核对。
+不提供 `-Manifest` 时，不能发现双方同时漏掉的整题或评分点；提供独立完整清单后可核对编号全集。
+清单仅核对编号，不核验评分标准内容、权重或人工判断本身是否正确。
 胜负仅反映已有评分；不是统计显著性结论，也不计算评审员一致性系数。
 平局容差为 1e-9 个百分点；计算不逐步取整。
 
@@ -99,19 +117,20 @@ $env:DEEPEVAL_DISABLE_DOTENV='1'
 $env:DEEPEVAL_UPDATE_WARNING_OPT_IN='0'
 $env:CONFIDENT_OPEN_BROWSER='0'
 $env:PYTEST_DISABLE_PLUGIN_AUTOLOAD='1'
-.\.venv\Scripts\python.exe -m pytest -o addopts= -p pytest_asyncio.plugin -p pytest_socket --disable-socket tests/test_core/test_rubric.py
-.\.venv\Scripts\python.exe -m ruff check --target-version py39 deepeval/rubric.py deepeval/cli/rubric.py tests/test_core/test_rubric.py
+$rubricTests = (Get-ChildItem tests/test_core/test_rubric*.py).FullName
+.\.venv\Scripts\python.exe -m pytest -o addopts= -p pytest_asyncio.plugin -p pytest_socket --disable-socket @rubricTests
+.\.venv\Scripts\python.exe -m ruff check --target-version py39 deepeval/rubric.py deepeval/cli/rubric.py @rubricTests
 ```
 
 测试覆盖计算口径、异常输入、UTF-8 中文、文件保护以及 CLI 禁网运行。
 上游包含依赖外部服务和密钥的测试，不承诺在本地运行全部测试。
-本轮新增功能与相邻 CLI、test-run 回归合计 **143 项通过**，
+截至 2026-10-14，CSV、Excel、完整清单与相邻 CLI、test-run 回归合计 **184 项通过**，
 具体环境、命令范围、两条上游警告与验证限制见 `VERIFICATION.md`。
 
 ## 后续真实开发方向
 
 1. 已支持固定列名的 XLSX 导入；下一步待取得实际交付模板后增加明确的列名映射，不猜测评分字段。
-2. 增加题目与 Rubric 基准清单，核对双方同时漏掉的整题或评分点；当前没有可用基准数据。
+2. 已支持完整评分点编号清单；下一步待用户提供真实 Rubric 定义后扩展标准内容和权重版本核验。
 3. 把单列 notes 扩展成 A/B 独立证据与来源位置；需先明确现有评审材料的证据格式。
 4. 增加多评审员记录与一致性分析；当前只有两模型评分，没有评审员身份和重复标注。
 5. 支持经用户确认的扣分项与不适用项政策；当前采用严格正权重规则，避免未经确认改变评分口径。

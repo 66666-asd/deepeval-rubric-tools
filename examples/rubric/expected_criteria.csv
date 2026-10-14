@@ -1,0 +1,5 @@
+case_id,criterion_id
+demo-001,accuracy
+demo-001,evidence
+demo-002,coverage
+demo-002,clarity

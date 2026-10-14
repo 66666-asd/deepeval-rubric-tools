@@ -51,3 +51,7 @@ files contain a downstream change notice; new modules are local additions.
   formula rejection, and offline integration tests are included.
 - New work is developed on `codex/rubric-excel-manifest`, without rewriting
   remote commits, backdating work, or manufacturing an admission commit count.
+- An optional independently supplied CSV manifest checks the exact expected
+  case/criterion key set before any report is written. A missing whole case,
+  jointly omitted criterion, duplicate manifest key, or unexpected score key
+  fails validation. This does not infer missing scores or change scoring policy.

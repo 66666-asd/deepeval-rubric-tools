@@ -127,6 +127,20 @@ def pair_scores(model_a, model_b, output):
     return len(result)
 
 
+def select_cases(source, case_ids, output, *, sheet=None):
+    """Select complete cases in source order, rejecting unknown requested IDs."""
+    rows = load_rubric_scores(source, sheet)
+    requested = set(case_ids)
+    if not requested:
+        raise RubricValidationError("Select at least one case ID.")
+    missing = requested - {row.case_id for row in rows}
+    if missing:
+        raise RubricValidationError(f"Unknown cases: {sorted(missing)[:20]!r}.")
+    selected = [row for row in rows if row.case_id in requested]
+    write_score_rows(selected, output)
+    return len(selected)
+
+
 def validate_score_file(path, *, sheet=None, manifest=None):
     """Validate input without computing model rankings or calling a judge."""
     rows = load_rubric_scores(path, sheet)

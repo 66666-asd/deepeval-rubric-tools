@@ -82,6 +82,21 @@ def test_pair_matches_keys_not_row_order_and_keeps_both_notes(tmp_path):
         pair_scores(left, right, tmp_path / "bad.csv")
 
 
+def test_case_selection_preserves_whole_cases(scores, tmp_path):
+    from deepeval.rubric_ops import select_cases
+
+    output = tmp_path / "selected.csv"
+    result = CliRunner().invoke(
+        app, ["rubric", "select", str(scores), str(output), "--case", "001"]
+    )
+    assert result.exit_code == 0, result.output
+    assert load_rubric_scores(output) == load_rubric_scores(scores)[:2]
+    for case_ids in ([], ["001", "unknown"]):
+        with pytest.raises(RubricValidationError):
+            select_cases(scores, case_ids, tmp_path / "bad.csv")
+    assert not (tmp_path / "bad.csv").exists()
+
+
 def make_csv(path, rows, headers=(*REQUIRED_COLUMNS, "notes")):
     with path.open("w", encoding="utf-8", newline="") as target:
         writer = csv.writer(target)

@@ -1,5 +1,12 @@
 # Local rubric workflow commands
 
+## Select complete cases
+
+`deepeval rubric select scores.csv subset.csv --case 001 --case 002`
+
+Preserves every criterion of requested cases and input ordering. Missing case
+IDs fail, rather than silently producing a smaller sample. IDs remain text.
+
 ## Pair independently scored models
 
 `deepeval rubric pair model-a.csv model-b.csv paired.xlsx`

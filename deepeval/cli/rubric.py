@@ -16,6 +16,24 @@ from deepeval.rubric_ops import convert_scores, validate_score_file
 app = typer.Typer(help="Validate and compare existing rubric scores locally.")
 
 
+@app.command("select")
+def select_command(
+    source: Path,
+    output: Path,
+    case: Annotated[list[str], typer.Option("--case")],
+    sheet: Optional[str] = None,
+):  # noqa: FA100
+    """Select whole cases, preserving every criterion in each chosen case."""
+    from deepeval.rubric_ops import select_cases
+
+    try:
+        count = select_cases(source, case, output, sheet=sheet)
+        typer.echo(f"Selected {count} criterion rows to {output}")
+    except (RubricValidationError, OSError) as exc:
+        typer.echo(f"Case selection failed: {exc}", err=True)
+        raise typer.Exit(2) from exc
+
+
 @app.command("pair")
 def pair_command(model_a: Path, model_b: Path, output: Path):
     """Pair two single-model CSV score files by case and criterion IDs."""

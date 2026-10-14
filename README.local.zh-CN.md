@@ -16,7 +16,7 @@
 - 每题按权重归一化为百分制，再对各题等权平均。
 - 输出总分、每题分数、逐点评分、加权贡献、差值、胜负和备注。
 - 输入不完整时整体报错，不将漏评当作零分，不生成部分报告。
-- 不覆盖输入或已有输出；CSV 模式无新增依赖，Excel 导入使用可选依赖。
+- 不覆盖输入或已有输出；CSV 模式无新增依赖，Excel 导入、导出及模板使用可选依赖。
 
 ## Windows 快速运行
 
@@ -73,6 +73,40 @@ Excel 内保留数值精度，只在显示时使用两位小数。输出是计�
 修改评分后应重新运行比较，而不是修改报告。报告带筛选器，题号按文本保留前导零。
 模型名、评分说明及备注都写成文本，不会作为 Excel 公式执行；超长文本和非法字符会报错，
 不会静默截断。输出文件必须不存在；导出不会覆盖已有文件或源评分表。
+
+## 生成空白评分模板
+
+先准备独立 Rubric 定义 CSV，必填列为
+`case_id,criterion_id,criterion,weight,max_score`，可选 `notes`，不包含评分列。
+编号和标准内容不得为空，编号组合不得重复，权重及满分必须为有限正数，最多 100000 行。
+提供的 `examples/rubric/definitions.csv` 只是合成演示，不是用户的真实评测标准。
+
+安装 Excel 可选依赖后，在项目目录运行：
+
+```powershell
+$env:DEEPEVAL_TELEMETRY_OPT_OUT='1'
+$env:DEEPEVAL_DISABLE_DOTENV='1'
+$env:DEEPEVAL_UPDATE_WARNING_OPT_IN='0'
+$env:CONFIDENT_OPEN_BROWSER='0'
+$env:DEEPEVAL_FILE_SYSTEM='READ_ONLY'
+$env:PYTHONUTF8='1'
+.\.venv\Scripts\deepeval.exe rubric template .\examples\rubric\definitions.csv --output .\scoring-template.xlsx
+```
+
+这些原生 CLI 环境设置只影响当前 PowerShell 进程及其子进程，关闭窗口后不保留。
+输出包含 `Scores` 和 `Instructions`；前者沿用导入器列名，A/B 分数都留空。
+人工填写蓝色评分单元格，分数应在 0 至该行 `max_score` 之间，不改标准定义或编号。
+Excel 的范围校验只辅助填写，粘贴可能绕过；再次导入时程序仍会严格检查。
+空白不是零分，未填完时不能生成对比结果。模板不是已完成评测，也不会自动评分。
+
+填写完成并在 Excel 保存后，运行（生成的模板有两个工作表，须指定 `Scores`）：
+
+```powershell
+.\run_rubric.ps1 -Scores .\scoring-template.xlsx -Sheet Scores -Manifest .\examples\rubric\expected_criteria.csv -OutputPath .\scoring-result.xlsx
+```
+
+使用真实 Rubric 时，清单应相应换成来自独立完整题库的真实编号清单。
+输出目录须存在，模板和报告输出文件均不得已存在。既有文件不会被覆盖。
 
 ## 完整评分点清单核对
 
@@ -140,7 +174,7 @@ $rubricModules = (Get-ChildItem deepeval/rubric*.py).FullName
 
 测试覆盖计算口径、异常输入、UTF-8 中文、文件保护以及 CLI 禁网运行。
 上游包含依赖外部服务和密钥的测试，不承诺在本地运行全部测试。
-截至 2026-10-14，CSV、Excel 导入导出、完整清单与相邻 CLI、test-run 回归合计 **199 项通过**，
+截至 2026-10-14，CSV、Excel 导入导出、空白模板、完整清单与相邻 CLI、test-run 回归合计 **234 项通过**，
 具体环境、命令范围、两条上游警告与验证限制见 `VERIFICATION.md`。
 
 ## 后续真实开发方向

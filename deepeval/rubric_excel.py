@@ -1,4 +1,4 @@
-"""Downstream Excel output for validated, already-scored rubric comparisons."""
+"""Downstream Excel reports and blank scoring templates."""
 
 from __future__ import annotations
 
@@ -6,7 +6,11 @@ import re
 from io import BytesIO
 from pathlib import Path
 
-from deepeval.rubric import RubricValidationError
+from deepeval.rubric import (
+    REQUIRED_COLUMNS,
+    RubricValidationError,
+    load_rubric_template_csv,
+)
 
 _INVALID_XML_TEXT = re.compile(
     r"[\x00-\x08\x0b\x0c\x0e-\x1f\ud800-\udfff\ufffe\uffff]"
@@ -197,3 +201,112 @@ def write_rubric_excel_report(report, output):
         _save_new_workbook(workbook, output)
     finally:
         workbook.close()
+
+
+def write_rubric_excel_template(definition, output):
+    """Build a blank score workbook from a validated independent definition.
+
+    Excel validation is an editing aid only. The importer still checks every
+    score because pasted values can bypass spreadsheet validation.
+    """
+    rows = load_rubric_template_csv(definition)
+    workbook = _new_workbook()
+    try:
+        from openpyxl.styles import Font, PatternFill
+        from openpyxl.worksheet.datavalidation import DataValidation
+
+        scores = workbook.active
+        scores.title = "Scores"
+        _append_literals(scores, [*REQUIRED_COLUMNS, "notes"])
+        for row in rows:
+            _append_literals(
+                scores,
+                [
+                    row["case_id"],
+                    row["criterion_id"],
+                    row["criterion"],
+                    row["weight"],
+                    row["max_score"],
+                    None,
+                    None,
+                    row["notes"],
+                ],
+            )
+        _style_sheet(
+            scores,
+            [22, 22, 65, 16, 16, 20, 20, 65],
+            numeric_columns=(4, 5, 6, 7),
+        )
+        for row in scores.iter_rows(min_row=2):
+            for index in (0, 1, 2, 7):
+                row[index].number_format = "@"
+            for cell in row[5:7]:
+                cell.font = Font(name="Calibri", size=11, color="0070C0")
+                cell.fill = PatternFill("solid", fgColor="E8F1FC")
+                cell.number_format = "0.00"
+        validation = DataValidation(
+            type="decimal",
+            operator="between",
+            formula1="0",
+            formula2="$E2",
+            allow_blank=True,
+            showErrorMessage=True,
+            showInputMessage=True,
+            errorStyle="stop",
+            errorTitle="Invalid score",
+            error="Enter a number from zero to this row's max_score.",
+            promptTitle="Human score required",
+            prompt="Fill both model scores before comparing. Blank is not zero.",
+        )
+        scores.add_data_validation(validation)
+        validation.add(f"F2:G{len(rows) + 1}")
+
+        guidance = workbook.create_sheet("Instructions")
+        _append_literals(guidance, ["Item", "Guidance"])
+        for row in (
+            (
+                "Status",
+                "Blank template; no model evaluation has been performed.",
+            ),
+            ("Definition source", str(Path(definition))),
+            ("Criteria", len(rows)),
+            (
+                "Scores",
+                "Fill model_a_score and model_b_score on the Scores sheet.",
+            ),
+            (
+                "Range",
+                "Each score must be a number from 0 to that row's max_score.",
+            ),
+            (
+                "Missing scores",
+                "Leave unreviewed scores blank; comparison rejects blanks.",
+            ),
+            (
+                "Identifiers",
+                "Keep case_id and criterion_id as text to preserve leading zeros.",
+            ),
+            (
+                "Definitions",
+                "Keep the supplied criterion, weight and max_score unchanged.",
+            ),
+            ("Import", 'deepeval rubric compare "filled.xlsx" --sheet Scores'),
+            (
+                "Completeness",
+                "Use --manifest with an independent complete key inventory.",
+            ),
+            (
+                "Validation",
+                "Excel validation is an aid; pasted values are rechecked on import.",
+            ),
+            (
+                "Formulas",
+                "Enter values only. Formula cells are rejected by the importer.",
+            ),
+        ):
+            _append_literals(guidance, row)
+        _style_sheet(guidance, [24, 100], filtered=False)
+        _save_new_workbook(workbook, output)
+    finally:
+        workbook.close()
+    return len(rows)

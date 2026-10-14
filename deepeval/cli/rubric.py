@@ -7,7 +7,10 @@ from typing import Annotated, Optional
 import typer
 
 from deepeval.rubric import RubricValidationError, compare_rubric_file
-from deepeval.rubric_excel import write_rubric_excel_report
+from deepeval.rubric_excel import (
+    write_rubric_excel_report,
+    write_rubric_excel_template,
+)
 
 app = typer.Typer(help="Validate and compare existing rubric scores locally.")
 
@@ -86,4 +89,26 @@ def compare_command(
             typer.echo(f"Report written to {output}")
     except (RubricValidationError, OSError) as exc:
         typer.echo(f"Rubric comparison failed: {exc}", err=True)
+        raise typer.Exit(code=2) from exc
+
+
+@app.command("template")
+def template_command(
+    definition: Annotated[
+        Path,
+        typer.Argument(help="UTF-8 CSV rubric definitions without scores."),
+    ],
+    output: Annotated[
+        Path,
+        typer.Option("--output", "-o", help="New XLSX scoring template path."),
+    ],
+):
+    """Create a Scores sheet with blank model scores, plus instructions."""
+    try:
+        count = write_rubric_excel_template(definition, output)
+        typer.echo(
+            f"Blank scoring template written to {output} ({count} criteria)"
+        )
+    except (RubricValidationError, OSError) as exc:
+        typer.echo(f"Rubric template failed: {exc}", err=True)
         raise typer.Exit(code=2) from exc

@@ -95,3 +95,21 @@
   XML characters, overlong cells, unchanged existing files and JSON fallback.
 - Export is a separate implementation/test/documentation feature commit.
   This local test result is not a GitHub-hosted CI or admission result.
+
+## Blank scoring template verification - 2026-10-14
+
+- Combined rubric, XLSX, template, manifest, CLI and test-run regressions:
+  **234 passed, 2 existing upstream collection warnings in 11.68 seconds**.
+- All tests ran with sockets disabled. Ruff lint, formatting, dependency
+  consistency and `git diff --check` passed. Template coverage adds 35 tests.
+- Verified strict definition headers, BOM/reordered columns, optional notes,
+  unique text IDs, finite positive weights/maxima and the 100000-row limit.
+- Generated Scores sheets have empty model scores and row-relative decimal
+  validation. No scores are invented. Blank sheets fail score import; filled
+  sheets round-trip through the existing importer and independent manifest.
+- Pasted out-of-range scores, booleans and formulas still fail on import.
+  Formula-like definition strings remain literal; invalid Excel text and
+  existing output paths do not result in overwritten user data.
+- Synthetic example definitions match the bundled independent key manifest.
+  The README documents generation, human entry and subsequent comparison.
+- These are local results; remote CI and repository admission remain separate.

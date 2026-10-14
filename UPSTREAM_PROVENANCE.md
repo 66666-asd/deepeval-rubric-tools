@@ -58,3 +58,7 @@ files contain a downstream change notice; new modules are local additions.
 - Optional XLSX comparison exports provide summary, case and criterion sheets
   from the same validated report. User text remains literal, output files are
   exclusively created, and numeric presentation does not alter score precision.
+- A definition-driven template command generates blank XLSX score sheets with
+  row-relative input validation and usage instructions. It never invents scores.
+  Definition validation, completed-workbook round trips and file protection
+  are tested together; example definitions are explicitly synthetic.

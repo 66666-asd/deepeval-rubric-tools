@@ -1,0 +1,5 @@
+case_id,criterion_id,criterion,weight,max_score,notes
+demo-001,accuracy,Correct result,3,4,Synthetic definition only
+demo-001,evidence,Evidence is traceable,1,2,Synthetic definition only
+demo-002,coverage,All required points covered,1,5,Synthetic definition only
+demo-002,clarity,Clear explanation,1,2,Synthetic definition only

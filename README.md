@@ -2,11 +2,13 @@
 # DeepEval Rubric Tools
 
 An unofficial downstream extension of DeepEval for comparing existing human
-rubric scores locally. Validate paired CSV scores, calculate weighted results,
-and export JSON reports without a model API call.
+rubric scores locally. Validate paired CSV/XLSX scores, calculate weighted
+results, and export JSON/Excel reports without a model API call. Generate
+blank Excel scoring templates from independent rubric-definition CSV files.
 
 - [Chinese quick start](README.local.zh-CN.md)
 - [Synthetic example scores](examples/rubric/paired_scores.csv)
+- [Synthetic rubric definitions for blank templates](examples/rubric/definitions.csv)
 - [Verification results](VERIFICATION.md)
 - [Upstream attribution and source snapshot](UPSTREAM_PROVENANCE.md)
 

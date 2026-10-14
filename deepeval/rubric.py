@@ -21,6 +21,14 @@ REQUIRED_COLUMNS = (
     "model_b_score",
 )
 OPTIONAL_COLUMNS = ("notes",)
+TEMPLATE_REQUIRED_COLUMNS = (
+    "case_id",
+    "criterion_id",
+    "criterion",
+    "weight",
+    "max_score",
+)
+TEMPLATE_OPTIONAL_COLUMNS = ("notes",)
 TIE_TOLERANCE = 1e-9
 
 
@@ -138,6 +146,57 @@ def _score_records(records: Iterable[tuple[int, dict[str, str]]]):
 def load_rubric_csv(path: str | Path) -> list[RubricScore]:
     """Load UTF-8 (optionally BOM) CSV; never turn missing scores into zero."""
     return _score_records(_read_csv(path))
+
+
+def load_rubric_template_csv(path: str | Path) -> list[dict[str, Any]]:
+    """Load Rubric definitions for a blank, import-compatible score template."""
+    if Path(path).suffix.lower() != ".csv":
+        raise RubricValidationError(
+            "Rubric definition must be a UTF-8 CSV file."
+        )
+    rows = []
+    seen = set()
+    for line, record in _read_csv(
+        path,
+        required=TEMPLATE_REQUIRED_COLUMNS,
+        optional=TEMPLATE_OPTIONAL_COLUMNS,
+    ):
+        if len(rows) >= 100000:
+            raise RubricValidationError(
+                "Rubric definition exceeds 100000 data rows."
+            )
+        for column in TEMPLATE_REQUIRED_COLUMNS[:3]:
+            if not record[column]:
+                raise RubricValidationError(
+                    f"Line {line}: {column} is required."
+                )
+        key = (record["case_id"], record["criterion_id"])
+        if key in seen:
+            raise RubricValidationError(
+                f"Line {line}: duplicate case/criterion {key!r}."
+            )
+        seen.add(key)
+        weight = _number(record["weight"], "weight", line)
+        max_score = _number(record["max_score"], "max_score", line)
+        if weight <= 0 or max_score <= 0:
+            raise RubricValidationError(
+                f"Line {line}: weight and max_score must be greater than zero."
+            )
+        rows.append(
+            {
+                "case_id": key[0],
+                "criterion_id": key[1],
+                "criterion": record["criterion"],
+                "weight": weight,
+                "max_score": max_score,
+                "notes": record.get("notes", ""),
+            }
+        )
+    if not rows:
+        raise RubricValidationError(
+            "Rubric definition must contain at least one row."
+        )
+    return rows
 
 
 def _read_xlsx(path, sheet):

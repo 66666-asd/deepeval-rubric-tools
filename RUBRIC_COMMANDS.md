@@ -1,5 +1,14 @@
 # Local rubric workflow commands
 
+## Explicit source column mapping
+
+`deepeval rubric import-csv external.csv mapping.json normalized.xlsx`
+
+Mapping JSON maps each external header to a canonical header, for example
+`{"ID":"case_id", ...}`. All required columns must appear exactly once;
+only `notes` is optional. Extra source columns, duplicate mappings and missing
+fields fail. No implicit column guessing, discarded data or score coercion.
+
 ## Case results for spreadsheet analysis
 
 `deepeval rubric compare scores.csv --output cases.csv`

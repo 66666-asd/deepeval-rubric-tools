@@ -170,6 +170,58 @@ def sample_cases(source, count, seed, output, *, sheet=None):
     return sorted(selected)
 
 
+def import_mapped_csv(source, mapping_path, output):
+    """Normalize explicit source-header mappings; never guess semantic fields."""
+    import json
+
+    from deepeval.rubric import OPTIONAL_COLUMNS, _read_csv, _score_records
+
+    def unique_pairs(pairs):
+        result = {}
+        for key, value in pairs:
+            if key in result:
+                raise RubricValidationError(f"Duplicate mapping key: {key!r}.")
+            result[key] = value
+        return result
+
+    try:
+        mapping = json.loads(
+            Path(mapping_path).read_text(encoding="utf-8-sig"),
+            object_pairs_hook=unique_pairs,
+        )
+    except (ValueError, UnicodeError) as exc:
+        raise RubricValidationError(f"Invalid mapping JSON: {exc}") from exc
+    if (
+        not isinstance(mapping, dict)
+        or not mapping
+        or not all(
+            isinstance(k, str) and isinstance(v, str) and k and v
+            for k, v in mapping.items()
+        )
+    ):
+        raise RubricValidationError(
+            "Mapping must be a nonempty JSON object of source names to canonical names."
+        )
+    values = list(mapping.values())
+    if (
+        len(set(values)) != len(values)
+        or not set(REQUIRED_COLUMNS) <= set(values)
+        or not set(values) <= set(REQUIRED_COLUMNS + OPTIONAL_COLUMNS)
+    ):
+        raise RubricValidationError(
+            "Mapping must cover required columns exactly once; only notes is optional."
+        )
+    records = (
+        (line, {mapping[key]: value for key, value in record.items()})
+        for line, record in _read_csv(
+            source, required=tuple(mapping), optional=()
+        )
+    )
+    rows = _score_records(records)
+    write_score_rows(rows, output)
+    return len(rows)
+
+
 def validate_score_file(path, *, sheet=None, manifest=None):
     """Validate input without computing model rankings or calling a judge."""
     rows = load_rubric_scores(path, sheet)

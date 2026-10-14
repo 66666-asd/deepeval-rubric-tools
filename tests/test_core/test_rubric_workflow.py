@@ -301,6 +301,56 @@ def test_case_csv_export_uses_safe_text_and_preserves_numbers(scores, tmp_path):
     assert result.exit_code == 0, result.output
 
 
+def test_explicit_header_mapping_imports_without_guessing(tmp_path):
+    source = make_csv(
+        tmp_path / "custom.csv",
+        [["01", "r", "A", 1, 4, 4, 2]],
+        ["ID", "Rubric", "Text", "Weight", "Max", "A", "B"],
+    )
+    mapping = tmp_path / "mapping.json"
+    mapping.write_text(
+        json.dumps(
+            dict(
+                zip(
+                    ["ID", "Rubric", "Text", "Weight", "Max", "A", "B"],
+                    REQUIRED_COLUMNS,
+                )
+            )
+        ),
+        encoding="utf-8",
+    )
+    output = tmp_path / "normalized.xlsx"
+    result = CliRunner().invoke(
+        app, ["rubric", "import-csv", str(source), str(mapping), str(output)]
+    )
+    assert result.exit_code == 0, result.output
+    assert load_rubric_scores(output)[0].case_id == "01"
+    assert load_rubric_scores(output)[0].model_b_score == 2
+
+
+@pytest.mark.parametrize(
+    "mapping_text",
+    [
+        "[]",
+        '{"ID":"case_id","ID":"case_id"}',
+        '{"ID":"case_id"}',
+        '{"ID": 1}',
+        "invalid",
+    ],
+)
+def test_mapping_rejects_ambiguous_or_incomplete_schema(
+    scores, tmp_path, mapping_text
+):
+    from deepeval.rubric_ops import import_mapped_csv
+
+    mapping = tmp_path / "map.json"
+    mapping.write_text(mapping_text, encoding="utf-8")
+    output = tmp_path / "bad.csv"
+    with pytest.raises(RubricValidationError):
+        import_mapped_csv(scores, mapping, output)
+    assert not output.exists()
+
+
 def make_csv(path, rows, headers=(*REQUIRED_COLUMNS, "notes")):
     with path.open("w", encoding="utf-8", newline="") as target:
         writer = csv.writer(target)

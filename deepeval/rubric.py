@@ -30,6 +30,8 @@ TEMPLATE_REQUIRED_COLUMNS = (
 )
 TEMPLATE_OPTIONAL_COLUMNS = ("notes",)
 TIE_TOLERANCE = 1e-9
+MAX_TEXT_BYTES = 50 * 1024 * 1024
+MAX_SCORE_ROWS = 100000
 
 
 class RubricValidationError(ValueError):
@@ -76,11 +78,15 @@ def _validate_columns(columns, required, optional=()):
 
 
 def _read_csv(path, required=REQUIRED_COLUMNS, optional=OPTIONAL_COLUMNS):
+    if Path(path).stat().st_size > MAX_TEXT_BYTES:
+        raise RubricValidationError("CSV exceeds the 50 MiB input limit.")
     try:
         with Path(path).open(encoding="utf-8-sig", newline="") as source:
             reader = csv.DictReader(source, strict=True)
             _validate_columns(reader.fieldnames, required, optional)
-            for record in reader:
+            for count, record in enumerate(reader, start=1):
+                if count > MAX_SCORE_ROWS:
+                    raise RubricValidationError("CSV exceeds 100000 data rows.")
                 line = reader.line_num
                 if None in record or any(
                     value is None for value in record.values()
@@ -102,6 +108,8 @@ def _score_records(records: Iterable[tuple[int, dict[str, str]]]):
     rows: list[RubricScore] = []
     seen = set()
     for line, record in records:
+        if len(rows) >= MAX_SCORE_ROWS:
+            raise RubricValidationError("Score table exceeds 100000 data rows.")
         for column in REQUIRED_COLUMNS:
             if not record[column]:
                 raise RubricValidationError(
@@ -304,6 +312,9 @@ def _read_xlsx(path, sheet):
 def _read_jsonl(path):
     import json
 
+    if Path(path).stat().st_size > MAX_TEXT_BYTES:
+        raise RubricValidationError("JSONL exceeds the 50 MiB input limit.")
+
     def unique_object(pairs):
         record = {}
         for key, value in pairs:
@@ -315,7 +326,7 @@ def _read_jsonl(path):
     try:
         with Path(path).open(encoding="utf-8-sig") as source:
             for line, text in enumerate(source, start=1):
-                if line > 100000:
+                if line > MAX_SCORE_ROWS:
                     raise RubricValidationError("JSONL exceeds 100000 rows.")
                 if not text.strip():
                     raise RubricValidationError(
@@ -335,6 +346,10 @@ def _read_jsonl(path):
                         if not isinstance(value, str):
                             raise RubricValidationError(
                                 f"Line {line}: {column} must be text."
+                            )
+                        if any(0xD800 <= ord(char) <= 0xDFFF for char in value):
+                            raise RubricValidationError(
+                                f"Line {line}: invalid Unicode surrogate in {column}."
                             )
                     elif isinstance(value, bool) or not isinstance(
                         value, (int, float, str)

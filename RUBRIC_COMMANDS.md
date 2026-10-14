@@ -1,5 +1,11 @@
 # Local rubric workflow commands
 
+## Text input bounds
+
+CSV and JSONL input files are capped at 50 MiB and 100000 data records. CSV
+multiline fields count as one record. JSONL rejects lone Unicode surrogates,
+nonfinite scores and malformed records before generating any output.
+
 ## Output integrity
 
 Generated files are serialized and flushed to a sibling temporary file before

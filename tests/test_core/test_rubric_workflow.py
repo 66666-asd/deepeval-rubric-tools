@@ -399,6 +399,30 @@ def test_atomic_outputs_preserve_files_and_clean_temporary_paths(
     assert list(tmp_path.glob(".rubric-*.tmp")) == []
 
 
+def test_text_input_limits_fail_before_output(scores, tmp_path, monkeypatch):
+    monkeypatch.setattr("deepeval.rubric.MAX_TEXT_BYTES", 10)
+    with pytest.raises(RubricValidationError, match="50 MiB"):
+        convert_scores(scores, tmp_path / "large.csv")
+    monkeypatch.setattr("deepeval.rubric.MAX_TEXT_BYTES", 100000)
+    monkeypatch.setattr("deepeval.rubric.MAX_SCORE_ROWS", 2)
+    with pytest.raises(RubricValidationError, match="data rows"):
+        load_rubric_scores(scores)
+    assert not (tmp_path / "large.csv").exists()
+
+
+def test_jsonl_rejects_unpaired_surrogates_and_nonfinite_numbers(tmp_path):
+    source = tmp_path / "bad.jsonl"
+    record = dict(zip(REQUIRED_COLUMNS, ["a", "r", "A", 1, 1, 1, 0]))
+    for change in (
+        {"criterion": "bad\ud800"},
+        {"model_a_score": float("nan")},
+        {"weight": float("inf")},
+    ):
+        source.write_text(json.dumps({**record, **change}), encoding="utf-8")
+        with pytest.raises(RubricValidationError):
+            load_rubric_scores(source)
+
+
 def make_csv(path, rows, headers=(*REQUIRED_COLUMNS, "notes")):
     with path.open("w", encoding="utf-8", newline="") as target:
         writer = csv.writer(target)

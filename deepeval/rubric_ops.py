@@ -76,6 +76,57 @@ def merge_scores(sources, output):
     return len(rows)
 
 
+def pair_scores(model_a, model_b, output):
+    """Join independently supplied single-model CSV scores by explicit keys."""
+    from dataclasses import replace
+
+    from deepeval.rubric import _read_csv, _score_records
+
+    def read_single(path):
+        records = _read_csv(
+            path, required=(*REQUIRED_COLUMNS[:5], "score"), optional=("notes",)
+        )
+
+        def paired_records():
+            for line, record in records:
+                score = record.pop("score")
+                yield (
+                    line,
+                    {**record, "model_a_score": score, "model_b_score": score},
+                )
+
+        return _score_records(paired_records())
+
+    left, right = read_single(model_a), read_single(model_b)
+    other = {(row.case_id, row.criterion_id): row for row in right}
+    if {(row.case_id, row.criterion_id) for row in left} != other.keys():
+        raise RubricValidationError("Single-model score key sets differ.")
+    result = []
+    for row in left:
+        paired = other[(row.case_id, row.criterion_id)]
+        if (row.criterion, row.weight, row.max_score) != (
+            paired.criterion,
+            paired.weight,
+            paired.max_score,
+        ):
+            raise RubricValidationError(
+                f"Scoring standards differ for {(row.case_id, row.criterion_id)!r}."
+            )
+        notes = "\n".join(
+            text
+            for text in (
+                f"A: {row.notes}" if row.notes else "",
+                f"B: {paired.notes}" if paired.notes else "",
+            )
+            if text
+        )
+        result.append(
+            replace(row, model_b_score=paired.model_a_score, notes=notes)
+        )
+    write_score_rows(result, output)
+    return len(result)
+
+
 def validate_score_file(path, *, sheet=None, manifest=None):
     """Validate input without computing model rankings or calling a judge."""
     rows = load_rubric_scores(path, sheet)

@@ -52,6 +52,36 @@ def test_merge_disjoint_shards_and_reject_overlap(scores, tmp_path):
         merge_scores([scores], failed)
 
 
+def test_pair_matches_keys_not_row_order_and_keeps_both_notes(tmp_path):
+    from deepeval.rubric_ops import pair_scores
+
+    header = [*REQUIRED_COLUMNS[:5], "score", "notes"]
+    left = make_csv(
+        tmp_path / "a.csv",
+        [["01", "r1", "A", 1, 4, 4, "a1"], ["02", "r1", "B", 1, 4, 1, ""]],
+        header,
+    )
+    right = make_csv(
+        tmp_path / "b.csv",
+        [["02", "r1", "B", 1, 4, 3, ""], ["01", "r1", "A", 1, 4, 2, "b1"]],
+        header,
+    )
+    output = tmp_path / "paired.csv"
+    result = CliRunner().invoke(
+        app, ["rubric", "pair", str(left), str(right), str(output)]
+    )
+    assert result.exit_code == 0, result.output
+    rows = load_rubric_scores(output)
+    assert [(r.model_a_score, r.model_b_score) for r in rows] == [
+        (4, 2),
+        (1, 3),
+    ]
+    assert rows[0].notes == "A: a1\nB: b1"
+    make_csv(right, [["01", "r1", "A", 1, 4, 2, ""]], header)
+    with pytest.raises(RubricValidationError, match="key sets"):
+        pair_scores(left, right, tmp_path / "bad.csv")
+
+
 def make_csv(path, rows, headers=(*REQUIRED_COLUMNS, "notes")):
     with path.open("w", encoding="utf-8", newline="") as target:
         writer = csv.writer(target)

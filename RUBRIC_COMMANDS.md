@@ -1,5 +1,13 @@
 # Local rubric workflow commands
 
+## Pair independently scored models
+
+`deepeval rubric pair model-a.csv model-b.csv paired.xlsx`
+
+Each input has `case_id,criterion_id,criterion,weight,max_score,score` and optional
+`notes`. Keys and scoring definitions must match exactly; row order may differ.
+A's order is retained. Notes are labeled A/B, with no overwriting or inferred scores.
+
 ## Merge score shards
 
 `deepeval rubric merge shard1.csv shard2.xlsx --output merged.csv`

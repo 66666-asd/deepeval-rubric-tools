@@ -16,6 +16,19 @@ from deepeval.rubric_ops import convert_scores, validate_score_file
 app = typer.Typer(help="Validate and compare existing rubric scores locally.")
 
 
+@app.command("pair")
+def pair_command(model_a: Path, model_b: Path, output: Path):
+    """Pair two single-model CSV score files by case and criterion IDs."""
+    from deepeval.rubric_ops import pair_scores
+
+    try:
+        count = pair_scores(model_a, model_b, output)
+        typer.echo(f"Paired {count} criteria to {output}")
+    except (RubricValidationError, OSError) as exc:
+        typer.echo(f"Pairing failed: {exc}", err=True)
+        raise typer.Exit(2) from exc
+
+
 @app.command("merge")
 def merge_command(
     sources: list[Path], output: Annotated[Path, typer.Option("--output", "-o")]

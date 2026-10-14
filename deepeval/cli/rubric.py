@@ -18,6 +18,14 @@ from deepeval.rubric_ops import convert_scores, validate_score_file
 app = typer.Typer(help="Validate and compare existing rubric scores locally.")
 
 
+@app.command("doctor")
+def doctor_command():
+    """Print dependency versions and redacted offline-configuration checks."""
+    from deepeval.rubric_environment import diagnose_environment
+
+    typer.echo(json.dumps(diagnose_environment()))
+
+
 @app.command("batch")
 def batch_command(
     sources: list[Path], output: Annotated[Path, typer.Option("--output", "-o")]

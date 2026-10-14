@@ -1,5 +1,14 @@
 # Local rubric workflow commands
 
+## Diagnose local setup
+
+`deepeval rubric doctor`
+
+Prints Python/OS and relevant package versions plus boolean checks of the
+documented offline settings. No API keys, paths or raw environment values are
+included. This describes configuration, not a guarantee of network isolation;
+set offline flags before starting the CLI, as documented in the quick start.
+
 ## Batch independent comparisons
 
 `deepeval rubric batch run1.csv run2.jsonl --output batch.json`

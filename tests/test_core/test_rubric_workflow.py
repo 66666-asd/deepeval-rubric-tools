@@ -589,6 +589,32 @@ def test_batch_comparison_keeps_runs_independent_and_fails_as_unit(
     assert not (tmp_path / "bad.json").exists()
 
 
+def test_doctor_redacts_secrets_and_handles_optional_packages(monkeypatch):
+    from importlib import metadata
+
+    from deepeval.rubric_environment import diagnose_environment
+
+    monkeypatch.setenv("OPENAI_API_KEY", "secret-must-not-appear")
+    monkeypatch.setenv("DEEPEVAL_TELEMETRY_OPT_OUT", "1")
+    monkeypatch.setenv("DEEPEVAL_FILE_SYSTEM", "secret-must-not-appear")
+    original = metadata.version
+
+    def version(name):
+        if name == "openpyxl":
+            raise metadata.PackageNotFoundError(name)
+        return original(name)
+
+    monkeypatch.setattr("deepeval.rubric_environment.metadata.version", version)
+    result = diagnose_environment()
+    assert result["excel_dependencies_installed"] is False
+    assert result["offline_configuration"]["DEEPEVAL_TELEMETRY_OPT_OUT"] is True
+    assert "secret-must-not-appear" not in json.dumps(result)
+    monkeypatch.setenv("DEEPEVAL_FILE_SYSTEM", "READ_ONLY")
+    cli = CliRunner().invoke(app, ["rubric", "doctor"])
+    assert cli.exit_code == 0, cli.output
+    assert "secret-must-not-appear" not in cli.stdout
+
+
 def make_csv(path, rows, headers=(*REQUIRED_COLUMNS, "notes")):
     with path.open("w", encoding="utf-8", newline="") as target:
         writer = csv.writer(target)

@@ -523,6 +523,48 @@ def test_report_verification_recomputes_and_ignores_embedded_paths(
         verify_report(path, scores)
 
 
+def test_review_bundle_contains_only_auditable_local_artifacts(
+    scores, tmp_path
+):
+    import hashlib
+    from zipfile import ZipFile
+
+    from deepeval.rubric_audit import create_review_bundle, verify_report
+
+    output = tmp_path / "review.zip"
+    result = create_review_bundle(scores, output)
+    assert result["criterion_count"] == 3
+    with ZipFile(output) as archive:
+        assert set(archive.namelist()) == {
+            "scores.jsonl",
+            "report.json",
+            "report.html",
+            "README.txt",
+            "checksums.json",
+        }
+        checksums = json.loads(archive.read("checksums.json"))
+        for name, record in checksums.items():
+            assert (
+                hashlib.sha256(archive.read(name)).hexdigest()
+                == record["sha256"]
+            )
+        report = tmp_path / "report.json"
+        data = tmp_path / "normalized.jsonl"
+        report.write_bytes(archive.read("report.json"))
+        data.write_bytes(archive.read("scores.jsonl"))
+        assert (
+            json.loads(report.read_text(encoding="utf-8"))["source"]
+            == "scores.jsonl"
+        )
+    assert verify_report(report, data)["status"] == "verified"
+    with pytest.raises(FileExistsError):
+        create_review_bundle(scores, output)
+    cli = CliRunner().invoke(
+        app, ["rubric", "bundle", str(scores), str(tmp_path / "cli.zip")]
+    )
+    assert cli.exit_code == 0, cli.output
+
+
 def make_csv(path, rows, headers=(*REQUIRED_COLUMNS, "notes")):
     with path.open("w", encoding="utf-8", newline="") as target:
         writer = csv.writer(target)

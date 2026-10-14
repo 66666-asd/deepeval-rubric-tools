@@ -1,5 +1,14 @@
 # Local rubric workflow commands
 
+## Portable review bundle
+
+`deepeval rubric bundle scores.xlsx review.zip --sheet Scores`
+
+Includes canonical JSONL scores, JSON/HTML reports, instructions and SHA-256
+checksums. Notes and supplied scores are included: review confidentiality before
+sharing. No unrelated files or local input paths are packaged. Checksums are
+not signatures. This bundle does not assert independent inventory completeness.
+
 ## Recompute a saved JSON report
 
 `deepeval rubric verify-report report.json scores.csv`

@@ -96,6 +96,51 @@ def verify_report(
     }
 
 
+def create_review_bundle(source, output, *, sheet=None):
+    """Package canonical scores and recomputable reports, not unrelated files."""
+    from io import BytesIO
+    from tempfile import TemporaryDirectory
+    from zipfile import ZIP_DEFLATED, ZipFile
+
+    from deepeval.rubric_io import write_new_bytes
+    from deepeval.rubric_ops import write_score_rows
+    from deepeval.rubric_reports import write_html_report
+
+    if Path(output).suffix.lower() != ".zip":
+        raise RubricValidationError("Review bundle output must end in .zip.")
+    rows = load_rubric_scores(source, sheet)
+    with TemporaryDirectory(prefix="rubric-bundle-") as directory:
+        root = Path(directory)
+        normalized = root / "scores.jsonl"
+        write_score_rows(rows, normalized)
+        report = compare_rubric_file(normalized)
+        report["source"] = "scores.jsonl"
+        report_bytes = (
+            json.dumps(report, ensure_ascii=False, indent=2, allow_nan=False)
+            + "\n"
+        ).encode("utf-8")
+        write_html_report(report, root / "report.html")
+        entries = {
+            "scores.jsonl": normalized.read_bytes(),
+            "report.json": report_bytes,
+            "report.html": (root / "report.html").read_bytes(),
+            "README.txt": b"Supplied scores and notes are included. Review before sharing.\nVerify: deepeval rubric verify-report report.json scores.jsonl\nChecksums identify bytes, not authorship or a trusted signature.\n",
+        }
+    inventory = {
+        name: {"sha256": hashlib.sha256(data).hexdigest(), "bytes": len(data)}
+        for name, data in entries.items()
+    }
+    entries["checksums.json"] = json.dumps(
+        inventory, indent=2, sort_keys=True
+    ).encode("utf-8")
+    buffer = BytesIO()
+    with ZipFile(buffer, "w", ZIP_DEFLATED) as archive:
+        for name, data in entries.items():
+            archive.writestr(name, data)
+    write_new_bytes(output, buffer.getvalue())
+    return {"files": sorted(entries), "criterion_count": len(rows)}
+
+
 def fingerprint_scores(source, *, sheet=None):
     """Return raw-file and canonical validated-content SHA-256 fingerprints."""
     source = Path(source)

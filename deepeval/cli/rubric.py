@@ -18,6 +18,20 @@ from deepeval.rubric_ops import convert_scores, validate_score_file
 app = typer.Typer(help="Validate and compare existing rubric scores locally.")
 
 
+@app.command("bundle")
+def bundle_command(source: Path, output: Path, sheet: Optional[str] = None):
+    """Package scores (including notes), reports and checksums for review."""
+    from deepeval.rubric_audit import create_review_bundle
+
+    try:
+        typer.echo(
+            json.dumps(create_review_bundle(source, output, sheet=sheet))
+        )
+    except (RubricValidationError, OSError) as exc:
+        typer.echo(f"Bundle creation failed: {exc}", err=True)
+        raise typer.Exit(2) from exc
+
+
 @app.command("verify-report")
 def verify_report_command(
     report: Path,

@@ -180,6 +180,23 @@ def test_review_queue_ranks_normalized_gaps(scores):
     assert cli.exit_code == 2
 
 
+def test_descriptive_statistics_use_case_not_criterion_weights(
+    scores, tmp_path
+):
+    from deepeval.rubric_review import describe_scores
+
+    result = describe_scores(scores)
+    assert result["model_a"]["mean"] == 73.75
+    assert result["model_a"]["median"] == 73.75
+    assert result["model_a"]["population_stddev"] == 13.75
+    assert result["model_b"]["mean"] == 71.25
+    single = make_csv(tmp_path / "one.csv", [["a", "r", "A", 1, 1, 1, 0, ""]])
+    assert describe_scores(single)["delta"]["population_stddev"] == 0
+    cli = CliRunner().invoke(app, ["rubric", "describe", str(scores)])
+    assert cli.exit_code == 0, cli.output
+    assert json.loads(cli.stdout) == result
+
+
 def make_csv(path, rows, headers=(*REQUIRED_COLUMNS, "notes")):
     with path.open("w", encoding="utf-8", newline="") as target:
         writer = csv.writer(target)

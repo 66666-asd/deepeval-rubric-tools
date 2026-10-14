@@ -1,5 +1,13 @@
 # Local rubric workflow commands
 
+## Describe case-level scores
+
+`deepeval rubric describe scores.csv`
+
+Reports mean, median, minimum, maximum and population standard deviation for
+both models and paired deltas. Each case has equal weight, irrespective of
+criterion count. A single case has zero population spread; no inference is made.
+
 ## Prioritize disagreements
 
 `deepeval rubric review scores.csv --minimum-gap 20 --limit 50`

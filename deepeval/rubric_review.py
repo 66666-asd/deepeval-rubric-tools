@@ -53,6 +53,37 @@ def review_queue(source, *, minimum_gap=0.0, limit=20, sheet=None):
     }
 
 
+def describe_scores(source, *, sheet=None):
+    """Descriptive case-level summaries under the existing weighting policy."""
+    import math
+    import statistics
+
+    report = compare_rubric_file(source, sheet=sheet)
+
+    def summarize(values):
+        return {
+            "count": len(values),
+            "minimum": min(values),
+            "maximum": max(values),
+            "mean": math.fsum(values) / len(values),
+            "median": statistics.median(values),
+            "population_stddev": statistics.pstdev(values),
+        }
+
+    return {
+        "unit": "case",
+        "case_count": report["case_count"],
+        "criterion_count": report["criterion_count"],
+        "model_a": summarize([c["model_a_score"] for c in report["cases"]]),
+        "model_b": summarize([c["model_b_score"] for c in report["cases"]]),
+        "delta": summarize(
+            [c["delta_percentage_points"] for c in report["cases"]]
+        ),
+        "case_wins": report["case_wins"],
+        "interpretation": "Descriptive only; no significance or generalization claim.",
+    }
+
+
 def diff_scores(before, after):
     """Report additions, removals and field-level edits using stable keys."""
 

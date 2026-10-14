@@ -18,6 +18,20 @@ from deepeval.rubric_ops import convert_scores, validate_score_file
 app = typer.Typer(help="Validate and compare existing rubric scores locally.")
 
 
+@app.command("describe")
+def describe_command(source: Path, sheet: Optional[str] = None):
+    """Describe the distribution of case-level scores and paired deltas."""
+    from deepeval.rubric_review import describe_scores
+
+    try:
+        typer.echo(
+            json.dumps(describe_scores(source, sheet=sheet), allow_nan=False)
+        )
+    except (RubricValidationError, OSError) as exc:
+        typer.echo(f"Description failed: {exc}", err=True)
+        raise typer.Exit(2) from exc
+
+
 @app.command("review")
 def review_command(
     source: Path,

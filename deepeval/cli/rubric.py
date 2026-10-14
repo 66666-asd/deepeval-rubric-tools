@@ -11,8 +11,24 @@ from deepeval.rubric_excel import (
     write_rubric_excel_report,
     write_rubric_excel_template,
 )
+from deepeval.rubric_ops import validate_score_file
 
 app = typer.Typer(help="Validate and compare existing rubric scores locally.")
+
+
+@app.command("validate")
+def validate_command(
+    scores: Path,
+    sheet: Optional[str] = None,  # noqa: FA100
+    manifest: Optional[Path] = None,  # noqa: FA100
+):
+    """Check scores and optional expected keys without producing rankings."""
+    try:
+        result = validate_score_file(scores, sheet=sheet, manifest=manifest)
+        typer.echo(json.dumps(result, ensure_ascii=False, allow_nan=False))
+    except (RubricValidationError, OSError) as exc:
+        typer.echo(f"Rubric validation failed: {exc}", err=True)
+        raise typer.Exit(code=2) from exc
 
 
 @app.command("compare")

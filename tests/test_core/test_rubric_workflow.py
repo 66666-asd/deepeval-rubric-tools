@@ -197,6 +197,32 @@ def test_descriptive_statistics_use_case_not_criterion_weights(
     assert json.loads(cli.stdout) == result
 
 
+@pytest.mark.parametrize(
+    "minimum,regression,exit_code",
+    [(71.25, 2.5, 0), (72, 3, 1), (70, 2, 1), (101, 2, 2), (70, -1, 2)],
+)
+def test_quality_gate_boundaries_and_exit_codes(
+    scores, minimum, regression, exit_code
+):
+    result = CliRunner().invoke(
+        app,
+        [
+            "rubric",
+            "check",
+            str(scores),
+            "--minimum-b",
+            str(minimum),
+            "--maximum-regression",
+            str(regression),
+        ],
+    )
+    assert result.exit_code == exit_code, result.output
+    if exit_code != 2:
+        payload = json.loads(result.stdout)
+        assert payload["passed"] is (exit_code == 0)
+        assert payload["completeness"] == "not_checked"
+
+
 def make_csv(path, rows, headers=(*REQUIRED_COLUMNS, "notes")):
     with path.open("w", encoding="utf-8", newline="") as target:
         writer = csv.writer(target)

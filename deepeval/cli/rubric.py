@@ -18,6 +18,33 @@ from deepeval.rubric_ops import convert_scores, validate_score_file
 app = typer.Typer(help="Validate and compare existing rubric scores locally.")
 
 
+@app.command("check")
+def check_command(
+    source: Path,
+    minimum_b: Annotated[float, typer.Option("--minimum-b")],
+    maximum_regression: Annotated[float, typer.Option("--maximum-regression")],
+    manifest: Optional[Path] = None,
+    sheet: Optional[str] = None,
+):
+    """Check explicit thresholds for candidate B; exit 1 when a gate fails."""
+    from deepeval.rubric_review import check_quality_gate
+
+    try:
+        result = check_quality_gate(
+            source,
+            minimum_b=minimum_b,
+            maximum_regression=maximum_regression,
+            manifest=manifest,
+            sheet=sheet,
+        )
+        typer.echo(json.dumps(result, allow_nan=False))
+    except (RubricValidationError, OSError) as exc:
+        typer.echo(f"Quality check failed: {exc}", err=True)
+        raise typer.Exit(2) from exc
+    if not result["passed"]:
+        raise typer.Exit(1)
+
+
 @app.command("describe")
 def describe_command(source: Path, sheet: Optional[str] = None):
     """Describe the distribution of case-level scores and paired deltas."""

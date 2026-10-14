@@ -84,6 +84,42 @@ def describe_scores(source, *, sheet=None):
     }
 
 
+def check_quality_gate(
+    source, *, minimum_b, maximum_regression, manifest=None, sheet=None
+):
+    """Apply explicit user thresholds; model B is the candidate."""
+    import math
+
+    for name, value in (
+        ("minimum_b", minimum_b),
+        ("maximum_regression", maximum_regression),
+    ):
+        if not math.isfinite(value) or not 0 <= value <= 100:
+            raise RubricValidationError(
+                f"{name} must be finite and between 0 and 100."
+            )
+    report = compare_rubric_file(source, manifest=manifest, sheet=sheet)
+    checks = {
+        "candidate_minimum": report["model_b_score"] >= minimum_b,
+        "maximum_regression": report["delta_percentage_points"]
+        <= maximum_regression,
+    }
+    return {
+        "passed": all(checks.values()),
+        "checks": checks,
+        "thresholds": {
+            "minimum_b": minimum_b,
+            "maximum_regression": maximum_regression,
+        },
+        "model_a_score": report["model_a_score"],
+        "model_b_score": report["model_b_score"],
+        "a_minus_b": report["delta_percentage_points"],
+        "completeness": "matched_manifest"
+        if manifest is not None
+        else "not_checked",
+    }
+
+
 def diff_scores(before, after):
     """Report additions, removals and field-level edits using stable keys."""
 

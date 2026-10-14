@@ -1,5 +1,14 @@
 # Local rubric workflow commands
 
+## Explicit candidate quality gate
+
+`deepeval rubric check scores.csv --minimum-b 70 --maximum-regression 2`
+
+Candidate B must meet the supplied minimum score and may trail A by no more
+than the specified percentage points. Both thresholds are required (0-100).
+Exit 0 passes, 1 fails a threshold, 2 is invalid data/configuration. Optional
+`--manifest` verifies completeness. This is your policy, not an external gate.
+
 ## Describe case-level scores
 
 `deepeval rubric describe scores.csv`

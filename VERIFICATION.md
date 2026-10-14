@@ -1,5 +1,29 @@
 # Local verification - 2026-10-14
 
+## Workflow expansion verification - 2026-10-14
+
+- Full downstream rubric suite plus adjacent CLI and test-run tests:
+  **304 passed, 2 existing upstream collection warnings in 15.04 seconds**.
+- All selected tests ran with sockets disabled. Ruff lint with target py39,
+  formatting, `git diff --check` and dependency consistency checks passed.
+  Runtime execution was Python 3.12.7; no claim of all-version compatibility.
+- Workflow tests cover standalone validation, independent definitions, score
+  conversion/pairing/merging, whole-case selection and reproducible sampling,
+  revision diffs, review queues, descriptive summaries and explicit thresholds.
+- Export tests cover Markdown escaping, standalone HTML without executable
+  user markup, formula-neutralized case CSV, JSONL typed records and bounded
+  inputs. Atomic publication tests cover existing files and simulated I/O failure.
+- Audit tests cover independent key inventories, incomplete scoring progress,
+  canonical fingerprints, report recomputation, portable review ZIP checksums,
+  all-or-nothing batches, redacted diagnostics and machine-readable contracts.
+- All 21 documented rubric subcommands have successful help-invocation tests.
+- Work is committed as coherent implementation/test/documentation changes.
+  No empty commits, fabricated timestamps, upstream history substitution,
+  force pushes, or changes to the remote main branch are part of this work.
+- Commit counts describe Git history, not external admission. External effective
+  commit classification and never-public provenance requirements remain separate.
+- GitHub-hosted CI is checked after pushing; these are local results only.
+
 ## Environment
 
 - Windows, Python 3.12.7, isolated `.venv`.

@@ -1,5 +1,19 @@
 # Local rubric workflow commands
 
+These commands operate on user-supplied human scores, not model answers.
+Set the offline environment flags in README.local.zh-CN.md before invoking
+DeepEval. Output directories must exist and generated paths must be new.
+For each command, `deepeval rubric COMMAND --help` lists arguments/options.
+
+## Machine-readable field contracts
+
+`deepeval rubric schema --kind scores`
+
+Kinds `scores`, `definition` and `manifest` describe required/optional fields,
+types, constraints, unique keys and supported formats. Descriptions are derived
+from the same column constants as the loaders. This is an application contract,
+not a general-purpose JSON Schema document. Unknown kinds exit 2.
+
 ## Diagnose local setup
 
 `deepeval rubric doctor`

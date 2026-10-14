@@ -7,6 +7,7 @@ results, and export JSON/Excel reports without a model API call. Generate
 blank Excel scoring templates from independent rubric-definition CSV files.
 
 - [Chinese quick start](README.local.zh-CN.md)
+- [Data preparation, audit and report command reference](RUBRIC_COMMANDS.md)
 - [Synthetic example scores](examples/rubric/paired_scores.csv)
 - [Synthetic rubric definitions for blank templates](examples/rubric/definitions.csv)
 - [Verification results](VERIFICATION.md)

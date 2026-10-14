@@ -18,6 +18,18 @@ from deepeval.rubric_ops import convert_scores, validate_score_file
 app = typer.Typer(help="Validate and compare existing rubric scores locally.")
 
 
+@app.command("schema")
+def schema_command(kind: str = "scores"):
+    """Describe score, definition or manifest columns as machine-readable JSON."""
+    from deepeval.rubric_environment import describe_schema
+
+    try:
+        typer.echo(json.dumps(describe_schema(kind), indent=2))
+    except RubricValidationError as exc:
+        typer.echo(f"Schema request failed: {exc}", err=True)
+        raise typer.Exit(2) from exc
+
+
 @app.command("doctor")
 def doctor_command():
     """Print dependency versions and redacted offline-configuration checks."""
@@ -283,7 +295,7 @@ def merge_command(
 
 @app.command("convert")
 def convert_command(source: Path, output: Path, sheet: Optional[str] = None):
-    """Convert validated scores between CSV and XLSX without rescoring."""
+    """Convert validated CSV, XLSX or JSONL scores without rescoring."""
     try:
         count = convert_scores(source, output, sheet=sheet)
         typer.echo(f"Wrote {count} score rows to {output}")
@@ -310,14 +322,14 @@ def validate_command(
 @app.command("compare")
 def compare_command(
     scores: Annotated[
-        Path, typer.Argument(help="UTF-8 CSV or XLSX with paired scores.")
+        Path, typer.Argument(help="CSV, XLSX or JSONL with paired scores.")
     ],
     output: Annotated[
         Optional[Path],
         typer.Option(
             "--output",
             "-o",
-            help="Write JSON or XLSX to a new file; infer format from extension.",
+            help="Write a new JSON, XLSX, Markdown, HTML or case-CSV report.",
         ),
     ] = None,
     model_a: Annotated[

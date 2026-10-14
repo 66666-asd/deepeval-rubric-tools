@@ -615,6 +615,63 @@ def test_doctor_redacts_secrets_and_handles_optional_packages(monkeypatch):
     assert "secret-must-not-appear" not in cli.stdout
 
 
+@pytest.mark.parametrize("kind", ["scores", "definition", "manifest"])
+def test_schema_command_matches_loader_contracts(kind):
+    from deepeval.rubric import TEMPLATE_REQUIRED_COLUMNS
+
+    result = CliRunner().invoke(app, ["rubric", "schema", "--kind", kind])
+    assert result.exit_code == 0, result.output
+    contract = json.loads(result.stdout)
+    expected = {
+        "scores": REQUIRED_COLUMNS,
+        "definition": TEMPLATE_REQUIRED_COLUMNS,
+        "manifest": ("case_id", "criterion_id"),
+    }[kind]
+    assert [
+        field["name"] for field in contract["fields"] if field["required"]
+    ] == list(expected)
+    assert contract["unique_key"] == ["case_id", "criterion_id"]
+    assert contract["unknown_fields"] == "rejected"
+
+
+def test_unknown_schema_is_a_usage_error():
+    result = CliRunner().invoke(app, ["rubric", "schema", "--kind", "guessed"])
+    assert result.exit_code == 2
+    assert result.stdout == ""
+
+
+@pytest.mark.parametrize(
+    "command",
+    [
+        "compare",
+        "template",
+        "validate",
+        "convert",
+        "merge",
+        "pair",
+        "select",
+        "sample",
+        "diff",
+        "review",
+        "describe",
+        "check",
+        "import-csv",
+        "manifest",
+        "progress",
+        "fingerprint",
+        "verify-report",
+        "bundle",
+        "batch",
+        "doctor",
+        "schema",
+    ],
+)
+def test_documented_workflow_commands_have_help(command):
+    result = CliRunner().invoke(app, ["rubric", command, "--help"])
+    assert result.exit_code == 0, result.output
+    assert "Usage" in result.stdout
+
+
 def make_csv(path, rows, headers=(*REQUIRED_COLUMNS, "notes")):
     with path.open("w", encoding="utf-8", newline="") as target:
         writer = csv.writer(target)

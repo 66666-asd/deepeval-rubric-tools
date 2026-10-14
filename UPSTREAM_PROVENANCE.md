@@ -46,6 +46,15 @@ files contain a downstream change notice; new modules are local additions.
 
 ## Downstream feature development - 2026-10-14
 
+- The local workflow extension includes explicit data validation and definition
+  matching; CSV/XLSX/JSONL preparation; keyed pairing, shard merging and whole-case
+  selection; review/diff/descriptive tools; portable reports and audit bundles;
+  atomic new-file publication; and redacted diagnostics and field contracts.
+  See RUBRIC_COMMANDS.md for actual behavior and VERIFICATION.md for tests.
+- Additional downstream commits record actual implementation and regression
+  work in the current development session, not a reconstructed long-term history.
+  A larger commit count does not change this repository's public-source origin.
+
 - XLSX score import shares the existing CSV validation and scoring logic.
   Optional openpyxl/defusedxml dependencies, explicit worksheet selection,
   formula rejection, and offline integration tests are included.

@@ -56,6 +56,7 @@ def compare_command(
             help="Excel worksheet name; required for multiple sheets."
         ),
     ] = None,
+    definition: Optional[Path] = None,  # noqa: FA100
     manifest: Annotated[
         Optional[Path],  # noqa: FA100 - Typer evaluates types on Python 3.9.
         typer.Option(
@@ -89,6 +90,7 @@ def compare_command(
             model_b,
             sheet=sheet,
             manifest=manifest,
+            definition=definition,
         )
         if output is not None and output.suffix.lower() == ".xlsx":
             write_rubric_excel_report(report, output)

@@ -337,9 +337,13 @@ def compare_rubric_file(
     *,
     sheet: str | None = None,
     manifest: str | Path | None = None,
+    definition: str | Path | None = None,
 ) -> dict[str, Any]:
     """Compare CSV or XLSX scores without changing the scoring convention."""
     rows = load_rubric_scores(path, sheet)
+    definition_check = None
+    if definition is not None:
+        definition_check = validate_rubric_definition(rows, definition)
     manifest_check = None
     if manifest is not None:
         manifest_check = validate_rubric_manifest(rows, manifest)
@@ -348,7 +352,34 @@ def compare_rubric_file(
         report["source_sheet"] = sheet
     if manifest_check is not None:
         report["manifest_check"] = manifest_check
+    if definition_check is not None:
+        report["definition_check"] = definition_check
     return report
+
+
+def validate_rubric_definition(rows, path):
+    """Match keys, wording and scoring scales to an independent definition."""
+    expected = {
+        (row["case_id"], row["criterion_id"]): row
+        for row in load_rubric_template_csv(path)
+    }
+    actual = {(row.case_id, row.criterion_id): row for row in rows}
+    if expected.keys() != actual.keys():
+        raise RubricValidationError("Definition keys do not match score keys.")
+    mismatches = []
+    for key, row in actual.items():
+        for field in ("criterion", "weight", "max_score"):
+            if getattr(row, field) != expected[key][field]:
+                mismatches.append((key, field))
+    if mismatches:
+        raise RubricValidationError(
+            f"Definition mismatch: {len(mismatches)} fields; first 20: {mismatches[:20]!r}."
+        )
+    return {
+        "status": "passed",
+        "source": str(Path(path)),
+        "matched_criterion_count": len(actual),
+    }
 
 
 def validate_rubric_manifest(

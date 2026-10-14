@@ -7,7 +7,11 @@ import pytest
 from typer.testing import CliRunner
 
 from deepeval.cli.main import app
-from deepeval.rubric import REQUIRED_COLUMNS
+from deepeval.rubric import (
+    REQUIRED_COLUMNS,
+    RubricValidationError,
+    compare_rubric_file,
+)
 from deepeval.rubric_ops import validate_score_file
 
 
@@ -58,3 +62,29 @@ def test_validate_command_manifest_and_errors(scores, tmp_path):
     )
     assert result.exit_code == 2
     assert result.stdout == ""
+
+
+@pytest.mark.parametrize(
+    "field,value", [(2, "different standard"), (3, 2), (4, 6), (0, "extra")]
+)
+def test_definition_check_detects_changed_standard(
+    scores, tmp_path, field, value
+):
+    rows = [
+        ["001", "r1", "Accuracy", 3, 4],
+        ["001", "r2", "Evidence", 1, 2],
+        ["002", "r1", "Coverage", 1, 5],
+    ]
+    definition = make_csv(
+        tmp_path / "definitions.csv", rows, REQUIRED_COLUMNS[:5]
+    )
+    report = compare_rubric_file(scores, definition=definition)
+    assert report["definition_check"]["status"] == "passed"
+    rows[0][field] = value
+    make_csv(definition, rows, REQUIRED_COLUMNS[:5])
+    with pytest.raises(RubricValidationError, match="Definition"):
+        compare_rubric_file(scores, definition=definition)
+    result = CliRunner().invoke(
+        app, ["rubric", "compare", str(scores), "--definition", str(definition)]
+    )
+    assert result.exit_code == 2

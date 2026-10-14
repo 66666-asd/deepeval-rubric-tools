@@ -282,6 +282,25 @@ def test_html_report_contains_no_user_markup(scores, tmp_path):
     assert result.exit_code == 0, result.output
 
 
+def test_case_csv_export_uses_safe_text_and_preserves_numbers(scores, tmp_path):
+    from deepeval.rubric_reports import write_case_csv
+
+    report = compare_rubric_file(scores, model_a="=HYPERLINK(1)")
+    report["cases"][0]["case_id"] = " \t+SUM(1)"
+    output = tmp_path / "cases.csv"
+    write_case_csv(report, output)
+    with output.open(encoding="utf-8-sig", newline="") as source:
+        rows = list(csv.DictReader(source))
+    assert rows[0]["case_id"].startswith("'")
+    assert rows[0]["winner"].startswith("'")
+    assert float(rows[0]["model_a_score"]) == 87.5
+    assert float(rows[1]["delta_percentage_points"]) == -20
+    result = CliRunner().invoke(
+        app, ["rubric", "compare", str(scores), "-o", str(tmp_path / "cli.csv")]
+    )
+    assert result.exit_code == 0, result.output
+
+
 def make_csv(path, rows, headers=(*REQUIRED_COLUMNS, "notes")):
     with path.open("w", encoding="utf-8", newline="") as target:
         writer = csv.writer(target)

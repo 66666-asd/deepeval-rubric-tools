@@ -96,6 +96,37 @@ def write_html_report(report, output):
         target.write(payload)
 
 
+def write_case_csv(report, output):
+    """Export case-level results with spreadsheet-safe text cells."""
+    import csv
+    from io import StringIO
+
+    fields = (
+        "case_id",
+        "criterion_count",
+        "model_a_score",
+        "model_b_score",
+        "delta_percentage_points",
+        "winner",
+    )
+
+    def safe(value):
+        if isinstance(value, str) and value.lstrip().startswith(
+            ("=", "+", "-", "@")
+        ):
+            return "'" + value
+        return value
+
+    buffer = StringIO(newline="")
+    writer = csv.writer(buffer)
+    writer.writerow(fields)
+    for case in report["cases"]:
+        writer.writerow([safe(case[field]) for field in fields])
+    payload = buffer.getvalue().encode("utf-8-sig")
+    with Path(output).open("xb") as target:
+        target.write(payload)
+
+
 def _markdown_cell(value):
     text = html.escape(str(value), quote=True)
     for character in ("\\", "`", "*", "_", "[", "]", "~"):

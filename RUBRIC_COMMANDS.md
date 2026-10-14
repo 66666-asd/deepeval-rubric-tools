@@ -1,5 +1,13 @@
 # Local rubric workflow commands
 
+## Case results for spreadsheet analysis
+
+`deepeval rubric compare scores.csv --output cases.csv`
+
+Exports one row per case, not a re-importable criterion score sheet. UTF-8 BOM
+supports Excel. Formula-like text is prefixed with an apostrophe for safer
+viewing; numerical results retain precision. Use JSON for unchanged identifiers.
+
 ## Standalone HTML report
 
 `deepeval rubric compare scores.csv --output report.html`

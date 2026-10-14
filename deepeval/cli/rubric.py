@@ -18,6 +18,19 @@ from deepeval.rubric_ops import convert_scores, validate_score_file
 app = typer.Typer(help="Validate and compare existing rubric scores locally.")
 
 
+@app.command("manifest")
+def manifest_command(definition: Path, output: Path):
+    """Generate expected keys from an independent rubric definition CSV."""
+    from deepeval.rubric_ops import create_manifest
+
+    try:
+        count = create_manifest(definition, output)
+        typer.echo(f"Wrote {count} expected keys to {output}")
+    except (RubricValidationError, OSError) as exc:
+        typer.echo(f"Manifest generation failed: {exc}", err=True)
+        raise typer.Exit(2) from exc
+
+
 @app.command("import-csv")
 def import_csv_command(source: Path, mapping: Path, output: Path):
     """Normalize explicitly mapped source headers into the rubric schema."""

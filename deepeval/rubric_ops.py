@@ -233,6 +233,21 @@ def import_mapped_csv(source, mapping_path, output):
     return len(rows)
 
 
+def create_manifest(definition, output):
+    """Derive expected keys from independently supplied rubric definitions."""
+    from deepeval.rubric import load_rubric_template_csv
+
+    if Path(output).suffix.lower() != ".csv":
+        raise RubricValidationError("Manifest output must end in .csv.")
+    rows = load_rubric_template_csv(definition)
+    buffer = StringIO(newline="")
+    writer = csv.writer(buffer)
+    writer.writerow(["case_id", "criterion_id"])
+    writer.writerows((row["case_id"], row["criterion_id"]) for row in rows)
+    write_new_bytes(output, buffer.getvalue().encode("utf-8"))
+    return len(rows)
+
+
 def validate_score_file(path, *, sheet=None, manifest=None):
     """Validate input without computing model rankings or calling a judge."""
     rows = load_rubric_scores(path, sheet)

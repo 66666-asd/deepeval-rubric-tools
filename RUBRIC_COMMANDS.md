@@ -1,5 +1,13 @@
 # Local rubric workflow commands
 
+## Generate an expected-key manifest
+
+`deepeval rubric manifest independent-definitions.csv expected.csv`
+
+Accepts only the definition schema, not completed score files. The definitions
+must originate in the complete independent task inventory: generating definitions
+from incomplete scores would still fail to reveal jointly omitted criteria.
+
 ## Text input bounds
 
 CSV and JSONL input files are capped at 50 MiB and 100000 data records. CSV

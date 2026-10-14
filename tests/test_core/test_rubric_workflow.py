@@ -423,6 +423,33 @@ def test_jsonl_rejects_unpaired_surrogates_and_nonfinite_numbers(tmp_path):
             load_rubric_scores(source)
 
 
+def test_manifest_generation_requires_independent_definitions(scores, tmp_path):
+    from deepeval.rubric_ops import create_manifest
+
+    definition = make_csv(
+        tmp_path / "definition.csv",
+        [
+            ["001", "r1", "A", 1, 4],
+            ["001", "r2", "B", 1, 4],
+            ["002", "r1", "C", 1, 4],
+        ],
+        REQUIRED_COLUMNS[:5],
+    )
+    output = tmp_path / "manifest.csv"
+    cli = CliRunner().invoke(
+        app, ["rubric", "manifest", str(definition), str(output)]
+    )
+    assert cli.exit_code == 0, cli.output
+    assert (
+        validate_score_file(scores, manifest=output)["completeness"]
+        == "matched_manifest"
+    )
+    with pytest.raises(RubricValidationError):
+        create_manifest(scores, tmp_path / "bad.csv")
+    with pytest.raises(FileExistsError):
+        create_manifest(definition, output)
+
+
 def make_csv(path, rows, headers=(*REQUIRED_COLUMNS, "notes")):
     with path.open("w", encoding="utf-8", newline="") as target:
         writer = csv.writer(target)

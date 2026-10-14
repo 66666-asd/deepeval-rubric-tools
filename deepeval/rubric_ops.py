@@ -19,6 +19,16 @@ def write_score_rows(rows, output):
     """Serialize validated rows to an import-compatible new CSV or XLSX."""
     output = Path(output)
     fields = (*REQUIRED_COLUMNS, "notes")
+    if output.suffix.lower() == ".jsonl":
+        import json
+
+        payload = "".join(
+            json.dumps(asdict(row), ensure_ascii=False, allow_nan=False) + "\n"
+            for row in rows
+        ).encode("utf-8")
+        with output.open("xb") as target:
+            target.write(payload)
+        return
     if output.suffix.lower() == ".csv":
         buffer = StringIO(newline="")
         writer = csv.DictWriter(buffer, fieldnames=fields)
@@ -51,7 +61,9 @@ def write_score_rows(rows, output):
         finally:
             book.close()
     else:
-        raise RubricValidationError("Score output must end in .csv or .xlsx.")
+        raise RubricValidationError(
+            "Score output must end in .csv, .xlsx or .jsonl."
+        )
 
 
 def convert_scores(source, output, *, sheet=None):

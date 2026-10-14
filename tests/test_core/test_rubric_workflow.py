@@ -351,6 +351,33 @@ def test_mapping_rejects_ambiguous_or_incomplete_schema(
     assert not output.exists()
 
 
+def test_jsonl_roundtrip_and_comparison(scores, tmp_path):
+    output = tmp_path / "scores.jsonl"
+    convert_scores(scores, output)
+    assert load_rubric_scores(output) == load_rubric_scores(scores)
+    assert compare_rubric_file(output)["model_a_score"] == 73.75
+    cli = CliRunner().invoke(app, ["rubric", "validate", str(output)])
+    assert cli.exit_code == 0, cli.output
+
+
+@pytest.mark.parametrize(
+    "bad",
+    [
+        "[]",
+        "{}",
+        "\n",
+        '{"case_id":"1","case_id":"2"}',
+        "{broken",
+        '{"case_id":1,"criterion_id":"r","criterion":"A","weight":1,"max_score":1,"model_a_score":1,"model_b_score":true}',
+    ],
+)
+def test_jsonl_strict_records(tmp_path, bad):
+    source = tmp_path / "bad.jsonl"
+    source.write_text(bad, encoding="utf-8")
+    with pytest.raises(RubricValidationError):
+        load_rubric_scores(source)
+
+
 def make_csv(path, rows, headers=(*REQUIRED_COLUMNS, "notes")):
     with path.open("w", encoding="utf-8", newline="") as target:
         writer = csv.writer(target)

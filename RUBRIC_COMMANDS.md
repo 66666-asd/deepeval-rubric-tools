@@ -1,5 +1,14 @@
 # Local rubric workflow commands
 
+## JSON Lines score interchange
+
+`deepeval rubric convert scores.csv scores.jsonl`
+
+All score-input commands accept `.jsonl`: one canonical record per nonblank
+line, required text IDs, finite numeric scores, no duplicate keys or unknown
+fields. Conversion writes full-precision JSON numbers; compare outputs remain
+ordinary JSON reports. JSONL is limited to 100000 records; `--sheet` is invalid.
+
 ## Explicit source column mapping
 
 `deepeval rubric import-csv external.csv mapping.json normalized.xlsx`

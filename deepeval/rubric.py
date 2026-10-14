@@ -301,9 +301,64 @@ def _read_xlsx(path, sheet):
         ) from exc
 
 
+def _read_jsonl(path):
+    import json
+
+    def unique_object(pairs):
+        record = {}
+        for key, value in pairs:
+            if key in record:
+                raise RubricValidationError(f"Duplicate JSON key: {key!r}.")
+            record[key] = value
+        return record
+
+    try:
+        with Path(path).open(encoding="utf-8-sig") as source:
+            for line, text in enumerate(source, start=1):
+                if line > 100000:
+                    raise RubricValidationError("JSONL exceeds 100000 rows.")
+                if not text.strip():
+                    raise RubricValidationError(
+                        f"Line {line}: blank JSONL record."
+                    )
+                record = json.loads(text, object_pairs_hook=unique_object)
+                if not isinstance(record, dict):
+                    raise RubricValidationError(
+                        f"Line {line}: expected a JSON object."
+                    )
+                _validate_columns(
+                    list(record), REQUIRED_COLUMNS, OPTIONAL_COLUMNS
+                )
+                normalized = {}
+                for column, value in record.items():
+                    if column in REQUIRED_COLUMNS[:3] + OPTIONAL_COLUMNS:
+                        if not isinstance(value, str):
+                            raise RubricValidationError(
+                                f"Line {line}: {column} must be text."
+                            )
+                    elif isinstance(value, bool) or not isinstance(
+                        value, (int, float, str)
+                    ):
+                        raise RubricValidationError(
+                            f"Line {line}: {column} must be numeric."
+                        )
+                    normalized[column] = str(value).strip()
+                yield line, normalized
+    except (UnicodeError, json.JSONDecodeError) as exc:
+        raise RubricValidationError(
+            f"Cannot read valid UTF-8 JSONL: {exc}"
+        ) from exc
+
+
 def load_rubric_scores(path: str | Path, sheet: str | None = None):
     """Read a CSV or XLSX sheet using identical score validation."""
     suffix = Path(path).suffix.lower()
+    if suffix == ".jsonl":
+        if sheet is not None:
+            raise RubricValidationError(
+                "--sheet can only be used with XLSX input."
+            )
+        return _score_records(_read_jsonl(path))
     if suffix == ".xlsx":
         return _score_records(_read_xlsx(path, sheet))
     if suffix == ".csv":
@@ -312,7 +367,9 @@ def load_rubric_scores(path: str | Path, sheet: str | None = None):
                 "--sheet can only be used with XLSX input."
             )
         return load_rubric_csv(path)
-    raise RubricValidationError("Supported input formats are .csv and .xlsx.")
+    raise RubricValidationError(
+        "Supported input formats are .csv, .xlsx and .jsonl."
+    )
 
 
 def _winner(delta: float, model_a: str, model_b: str) -> str:

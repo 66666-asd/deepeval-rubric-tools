@@ -1,5 +1,12 @@
 # Local rubric workflow commands
 
+## Audit score edits
+
+`deepeval rubric diff before.csv after.csv`
+
+Emits added/removed rows and field-level before/after values aligned on IDs.
+Reordering alone is not a change. Both inputs must be valid completed scores.
+
 ## Reproducible review sample
 
 `deepeval rubric sample scores.csv sample.csv --count 20 --seed review-2026`

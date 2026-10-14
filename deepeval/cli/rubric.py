@@ -18,6 +18,22 @@ from deepeval.rubric_ops import convert_scores, validate_score_file
 app = typer.Typer(help="Validate and compare existing rubric scores locally.")
 
 
+@app.command("diff")
+def diff_command(before: Path, after: Path):
+    """Show key-aligned changes between validated score files as JSON."""
+    from deepeval.rubric_review import diff_scores
+
+    try:
+        typer.echo(
+            json.dumps(
+                diff_scores(before, after), ensure_ascii=False, allow_nan=False
+            )
+        )
+    except (RubricValidationError, OSError) as exc:
+        typer.echo(f"Score diff failed: {exc}", err=True)
+        raise typer.Exit(2) from exc
+
+
 @app.command("sample")
 def sample_command(
     source: Path,

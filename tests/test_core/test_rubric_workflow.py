@@ -129,6 +129,39 @@ def test_case_sampling_is_reproducible_and_keeps_criteria(scores, tmp_path):
     assert json.loads(result.stdout)["selected_cases"] == ["001", "002"]
 
 
+def test_score_diff_aligns_keys_and_reports_actual_fields(scores, tmp_path):
+    from dataclasses import replace
+
+    from deepeval.rubric_ops import write_score_rows
+    from deepeval.rubric_review import diff_scores
+
+    rows = load_rubric_scores(scores)
+    output = tmp_path / "edited.csv"
+    write_score_rows(
+        [
+            rows[2],
+            replace(rows[0], model_a_score=3, notes="rechecked"),
+            replace(rows[1], case_id="new"),
+        ],
+        output,
+    )
+    result = diff_scores(scores, output)
+    assert (
+        len(result["added"])
+        == len(result["removed"])
+        == len(result["changed"])
+        == 1
+    )
+    assert result["unchanged_count"] == 1
+    assert result["changed"][0]["fields"]["model_a_score"] == {
+        "before": 4,
+        "after": 3,
+    }
+    cli = CliRunner().invoke(app, ["rubric", "diff", str(scores), str(output)])
+    assert cli.exit_code == 0, cli.output
+    assert json.loads(cli.stdout) == result
+
+
 def make_csv(path, rows, headers=(*REQUIRED_COLUMNS, "notes")):
     with path.open("w", encoding="utf-8", newline="") as target:
         writer = csv.writer(target)

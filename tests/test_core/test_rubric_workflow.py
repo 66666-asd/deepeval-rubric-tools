@@ -476,6 +476,30 @@ def test_progress_counts_missing_without_treating_zero_as_blank(tmp_path):
         scoring_progress(source)
 
 
+def test_fingerprints_distinguish_content_from_format(scores, tmp_path):
+    from dataclasses import replace
+
+    from deepeval.rubric_audit import fingerprint_scores
+    from deepeval.rubric_ops import write_score_rows
+
+    original = fingerprint_scores(scores)
+    alternate = tmp_path / "alternate.jsonl"
+    rows = load_rubric_scores(scores)
+    write_score_rows(list(reversed(rows)), alternate)
+    changed = fingerprint_scores(alternate)
+    assert original["content_sha256"] == changed["content_sha256"]
+    assert original["file_sha256"] != changed["file_sha256"]
+    edited = tmp_path / "edited.csv"
+    write_score_rows([replace(rows[0], notes="changed"), *rows[1:]], edited)
+    assert (
+        fingerprint_scores(edited)["content_sha256"]
+        != original["content_sha256"]
+    )
+    cli = CliRunner().invoke(app, ["rubric", "fingerprint", str(scores)])
+    assert cli.exit_code == 0, cli.output
+    assert json.loads(cli.stdout) == original
+
+
 def make_csv(path, rows, headers=(*REQUIRED_COLUMNS, "notes")):
     with path.open("w", encoding="utf-8", newline="") as target:
         writer = csv.writer(target)

@@ -1,5 +1,14 @@
 # Local rubric workflow commands
 
+## Fingerprint validated score inputs
+
+`deepeval rubric fingerprint scores.csv`
+
+Reports SHA-256 for file bytes and canonical validated records (sorted by IDs,
+normalized numeric zeros, including notes). Equivalent CSV/XLSX/JSONL content
+has the same canonical digest despite row ordering. This identifies content,
+not authorship, historical provenance or a trusted signature.
+
 ## Inspect scoring completion
 
 `deepeval rubric progress template.xlsx --sheet Scores --definition definitions.csv`

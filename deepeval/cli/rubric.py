@@ -18,6 +18,18 @@ from deepeval.rubric_ops import convert_scores, validate_score_file
 app = typer.Typer(help="Validate and compare existing rubric scores locally.")
 
 
+@app.command("fingerprint")
+def fingerprint_command(source: Path, sheet: Optional[str] = None):
+    """Identify raw file bytes and canonical validated score content."""
+    from deepeval.rubric_audit import fingerprint_scores
+
+    try:
+        typer.echo(json.dumps(fingerprint_scores(source, sheet=sheet)))
+    except (RubricValidationError, OSError) as exc:
+        typer.echo(f"Fingerprint failed: {exc}", err=True)
+        raise typer.Exit(2) from exc
+
+
 @app.command("progress")
 def progress_command(
     source: Path, sheet: Optional[str] = None, definition: Optional[Path] = None

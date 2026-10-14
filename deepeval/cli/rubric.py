@@ -18,6 +18,20 @@ from deepeval.rubric_ops import convert_scores, validate_score_file
 app = typer.Typer(help="Validate and compare existing rubric scores locally.")
 
 
+@app.command("batch")
+def batch_command(
+    sources: list[Path], output: Annotated[Path, typer.Option("--output", "-o")]
+):
+    """Compare independent runs; publish only after every source validates."""
+    from deepeval.rubric_audit import batch_compare
+
+    try:
+        typer.echo(json.dumps(batch_compare(sources, output)))
+    except (RubricValidationError, OSError) as exc:
+        typer.echo(f"Batch comparison failed: {exc}", err=True)
+        raise typer.Exit(2) from exc
+
+
 @app.command("bundle")
 def bundle_command(source: Path, output: Path, sheet: Optional[str] = None):
     """Package scores (including notes), reports and checksums for review."""

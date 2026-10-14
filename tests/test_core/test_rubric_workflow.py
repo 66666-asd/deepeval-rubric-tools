@@ -565,6 +565,30 @@ def test_review_bundle_contains_only_auditable_local_artifacts(
     assert cli.exit_code == 0, cli.output
 
 
+def test_batch_comparison_keeps_runs_independent_and_fails_as_unit(
+    scores, tmp_path
+):
+    from deepeval.rubric_audit import batch_compare
+
+    second = tmp_path / "second.jsonl"
+    convert_scores(scores, second)
+    output = tmp_path / "batch.json"
+    cli = CliRunner().invoke(
+        app, ["rubric", "batch", str(scores), str(second), "-o", str(output)]
+    )
+    assert cli.exit_code == 0, cli.output
+    payload = json.loads(output.read_text(encoding="utf-8"))
+    assert payload["run_count"] == 2
+    assert len(payload["reports"]) == 2
+    assert "model_a_score" not in payload
+    for inputs in ([scores], [scores, scores], [scores] * 101):
+        with pytest.raises(RubricValidationError):
+            batch_compare(inputs, tmp_path / "bad.json")
+    with pytest.raises(OSError):
+        batch_compare([scores, tmp_path / "missing.csv"], tmp_path / "bad.json")
+    assert not (tmp_path / "bad.json").exists()
+
+
 def make_csv(path, rows, headers=(*REQUIRED_COLUMNS, "notes")):
     with path.open("w", encoding="utf-8", newline="") as target:
         writer = csv.writer(target)

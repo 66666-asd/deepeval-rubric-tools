@@ -96,6 +96,41 @@ def verify_report(
     }
 
 
+def batch_compare(sources, output):
+    """Validate all independent runs before publishing one JSON collection."""
+    from deepeval.rubric_io import write_new_bytes
+
+    if not 2 <= len(sources) <= 100:
+        raise RubricValidationError(
+            "Batch requires between 2 and 100 source files."
+        )
+    if Path(output).suffix.lower() != ".json":
+        raise RubricValidationError("Batch output must end in .json.")
+    paths = [Path(source).resolve() for source in sources]
+    if len(set(paths)) != len(paths):
+        raise RubricValidationError("Batch source paths must be unique.")
+    if Path(output).resolve() in paths:
+        raise RubricValidationError("Batch output must not replace an input.")
+    reports = [compare_rubric_file(source) for source in sources]
+    result = {
+        "batch_schema_version": 1,
+        "run_count": len(reports),
+        "reports": reports,
+        "interpretation": "Independent comparisons; no pooled score or cross-run ranking.",
+    }
+    write_new_bytes(
+        output,
+        (
+            json.dumps(result, ensure_ascii=False, indent=2, allow_nan=False)
+            + "\n"
+        ).encode("utf-8"),
+    )
+    return {
+        "run_count": len(reports),
+        "criterion_count": sum(report["criterion_count"] for report in reports),
+    }
+
+
 def create_review_bundle(source, output, *, sheet=None):
     """Package canonical scores and recomputable reports, not unrelated files."""
     from io import BytesIO

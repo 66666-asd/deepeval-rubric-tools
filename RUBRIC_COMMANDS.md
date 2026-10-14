@@ -1,5 +1,13 @@
 # Local rubric workflow commands
 
+## Batch independent comparisons
+
+`deepeval rubric batch run1.csv run2.jsonl --output batch.json`
+
+Accepts 2-100 distinct single-sheet inputs. All must validate before one JSON
+collection is published. Results stay separate: no pooled metric or implied
+cross-run comparability. Invalid later inputs never leave partial batch reports.
+
 ## Portable review bundle
 
 `deepeval rubric bundle scores.xlsx review.zip --sheet Scores`

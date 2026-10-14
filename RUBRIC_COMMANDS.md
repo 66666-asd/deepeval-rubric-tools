@@ -1,5 +1,13 @@
 # Local rubric workflow commands
 
+## Prioritize disagreements
+
+`deepeval rubric review scores.csv --minimum-gap 20 --limit 50`
+
+Ranks non-tied criteria by absolute normalized score gap (percentage points),
+then case/criterion IDs. Returns total matches and truncated review items.
+A large gap is a review priority, not evidence that either score is wrong.
+
 ## Audit score edits
 
 `deepeval rubric diff before.csv after.csv`

@@ -18,6 +18,26 @@ from deepeval.rubric_ops import convert_scores, validate_score_file
 app = typer.Typer(help="Validate and compare existing rubric scores locally.")
 
 
+@app.command("review")
+def review_command(
+    source: Path,
+    minimum_gap: float = 0.0,
+    limit: int = 20,
+    sheet: Optional[str] = None,
+):
+    """Prioritize criteria with the largest normalized model score gaps."""
+    from deepeval.rubric_review import review_queue
+
+    try:
+        result = review_queue(
+            source, minimum_gap=minimum_gap, limit=limit, sheet=sheet
+        )
+        typer.echo(json.dumps(result, ensure_ascii=False, allow_nan=False))
+    except (RubricValidationError, OSError) as exc:
+        typer.echo(f"Review queue failed: {exc}", err=True)
+        raise typer.Exit(2) from exc
+
+
 @app.command("diff")
 def diff_command(before: Path, after: Path):
     """Show key-aligned changes between validated score files as JSON."""

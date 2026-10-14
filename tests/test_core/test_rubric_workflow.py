@@ -162,6 +162,24 @@ def test_score_diff_aligns_keys_and_reports_actual_fields(scores, tmp_path):
     assert json.loads(cli.stdout) == result
 
 
+def test_review_queue_ranks_normalized_gaps(scores):
+    from deepeval.rubric_review import review_queue
+
+    result = review_queue(scores, minimum_gap=40, limit=1)
+    assert result["matching_count"] == 2
+    assert result["shown_count"] == 1
+    assert result["items"][0]["criterion_id"] == "r1"
+    assert result["items"][0]["absolute_gap"] == 50
+    assert review_queue(scores, minimum_gap=100)["items"] == []
+    for gap in (-1, float("nan"), float("inf"), 101):
+        with pytest.raises(RubricValidationError):
+            review_queue(scores, minimum_gap=gap)
+    cli = CliRunner().invoke(
+        app, ["rubric", "review", str(scores), "--limit", "0"]
+    )
+    assert cli.exit_code == 2
+
+
 def make_csv(path, rows, headers=(*REQUIRED_COLUMNS, "notes")):
     with path.open("w", encoding="utf-8", newline="") as target:
         writer = csv.writer(target)

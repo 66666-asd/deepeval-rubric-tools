@@ -7,6 +7,7 @@ from typing import Annotated, Optional
 import typer
 
 from deepeval.rubric import RubricValidationError, compare_rubric_file
+from deepeval.rubric_excel import write_rubric_excel_report
 
 app = typer.Typer(help="Validate and compare existing rubric scores locally.")
 
@@ -19,7 +20,9 @@ def compare_command(
     output: Annotated[
         Optional[Path],  # noqa: FA100 - Typer evaluates types on Python 3.9.
         typer.Option(
-            "--output", "-o", help="Write JSON to a new file instead of stdout."
+            "--output",
+            "-o",
+            help="Write JSON or XLSX to a new file; infer format from extension.",
         ),
     ] = None,
     model_a: Annotated[
@@ -48,6 +51,11 @@ def compare_command(
     to disable the upstream CLI's telemetry.
     """
     try:
+        if output is not None and output.suffix.lower() not in (
+            ".json",
+            ".xlsx",
+        ):
+            raise RubricValidationError("Output must end in .json or .xlsx.")
         if output is not None and output.resolve() == scores.resolve():
             raise RubricValidationError("Output must not replace the input.")
         if (
@@ -63,14 +71,18 @@ def compare_command(
             sheet=sheet,
             manifest=manifest,
         )
-        payload = json.dumps(
-            report, ensure_ascii=False, indent=2, allow_nan=False
-        )
-        if output is None:
-            typer.echo(payload)
+        if output is not None and output.suffix.lower() == ".xlsx":
+            write_rubric_excel_report(report, output)
         else:
-            with output.open("x", encoding="utf-8", newline="\n") as target:
-                target.write(payload + "\n")
+            payload = json.dumps(
+                report, ensure_ascii=False, indent=2, allow_nan=False
+            )
+            if output is None:
+                typer.echo(payload)
+            else:
+                with output.open("x", encoding="utf-8", newline="\n") as target:
+                    target.write(payload + "\n")
+        if output is not None:
             typer.echo(f"Report written to {output}")
     except (RubricValidationError, OSError) as exc:
         typer.echo(f"Rubric comparison failed: {exc}", err=True)

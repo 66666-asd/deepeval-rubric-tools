@@ -55,3 +55,6 @@ files contain a downstream change notice; new modules are local additions.
   case/criterion key set before any report is written. A missing whole case,
   jointly omitted criterion, duplicate manifest key, or unexpected score key
   fails validation. This does not infer missing scores or change scoring policy.
+- Optional XLSX comparison exports provide summary, case and criterion sheets
+  from the same validated report. User text remains literal, output files are
+  exclusively created, and numeric presentation does not alter score precision.

@@ -82,3 +82,16 @@
 - Two real feature units are implemented with tests and documentation, not a
   target number of commits. Remote publication is a separate operation and
   no result here claims repository admission or GitHub CI success.
+
+## Excel report export verification - 2026-10-14
+
+- Combined rubric, XLSX import/export, manifest, CLI and test-run regressions:
+  **199 passed, 2 existing upstream collection warnings in 10.64 seconds**.
+- All selected tests ran with sockets disabled. Ruff lint, format checks,
+  dependency consistency and `git diff --check` passed.
+- The export has Summary, Cases and Criteria sheets; numeric precision,
+  text identifiers, source details and optional manifest results are retained.
+- Regression tests cover formula-like user strings as literal text, invalid
+  XML characters, overlong cells, unchanged existing files and JSON fallback.
+- Export is a separate implementation/test/documentation feature commit.
+  This local test result is not a GitHub-hosted CI or admission result.

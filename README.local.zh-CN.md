@@ -42,6 +42,7 @@ DeepEval 初始化仍可能读取其现有本地配置；建议在本项目目�
 直接使用原生 CLI 时应自行设置这些环境变量。
 
 原生命令：`deepeval rubric compare scores.csv --output report.json`。
+输出扩展名须为 `.json` 或 `.xlsx`；后者生成 Excel 对比报告。
 不传 `--output` 时输出 JSON 到标准输出；校验或文件错误退出码为 2。
 
 ## Excel 评分表导入
@@ -58,6 +59,20 @@ Excel 第一行为与 CSV 相同的英文列名。只支持 `.xlsx`，不支持 
 完全空白行忽略；部分填写的行仍做完整性检查。
 文件限制为 50 MiB，解压总量不超过 200 MiB、10000 个 ZIP 条目，最多 100000 行数据。
 导入只读，不会修改源工作簿；不解析外部链接。
+
+## Excel 对比报告导出
+
+安装 `requirements-rubric-excel.txt` 后，输出文件扩展名改为 `.xlsx` 即可：
+
+```powershell
+.\run_rubric.ps1 -OutputPath .\comparison.xlsx -Manifest .\examples\rubric\expected_criteria.csv
+```
+
+报告包含 `Summary` 汇总及来源、`Cases` 逐题对比、`Criteria` 逐点评分和加权贡献。
+Excel 内保留数值精度，只在显示时使用两位小数。输出是计算结果快照，不是可重算模型；
+修改评分后应重新运行比较，而不是修改报告。报告带筛选器，题号按文本保留前导零。
+模型名、评分说明及备注都写成文本，不会作为 Excel 公式执行；超长文本和非法字符会报错，
+不会静默截断。输出文件必须不存在；导出不会覆盖已有文件或源评分表。
 
 ## 完整评分点清单核对
 
@@ -119,12 +134,13 @@ $env:CONFIDENT_OPEN_BROWSER='0'
 $env:PYTEST_DISABLE_PLUGIN_AUTOLOAD='1'
 $rubricTests = (Get-ChildItem tests/test_core/test_rubric*.py).FullName
 .\.venv\Scripts\python.exe -m pytest -o addopts= -p pytest_asyncio.plugin -p pytest_socket --disable-socket @rubricTests
-.\.venv\Scripts\python.exe -m ruff check --target-version py39 deepeval/rubric.py deepeval/cli/rubric.py @rubricTests
+$rubricModules = (Get-ChildItem deepeval/rubric*.py).FullName
+.\.venv\Scripts\python.exe -m ruff check --target-version py39 @rubricModules deepeval/cli/rubric.py @rubricTests
 ```
 
 测试覆盖计算口径、异常输入、UTF-8 中文、文件保护以及 CLI 禁网运行。
 上游包含依赖外部服务和密钥的测试，不承诺在本地运行全部测试。
-截至 2026-10-14，CSV、Excel、完整清单与相邻 CLI、test-run 回归合计 **184 项通过**，
+截至 2026-10-14，CSV、Excel 导入导出、完整清单与相邻 CLI、test-run 回归合计 **199 项通过**，
 具体环境、命令范围、两条上游警告与验证限制见 `VERIFICATION.md`。
 
 ## 后续真实开发方向

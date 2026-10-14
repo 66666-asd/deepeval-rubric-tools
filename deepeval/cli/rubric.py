@@ -18,6 +18,25 @@ from deepeval.rubric_ops import convert_scores, validate_score_file
 app = typer.Typer(help="Validate and compare existing rubric scores locally.")
 
 
+@app.command("progress")
+def progress_command(
+    source: Path, sheet: Optional[str] = None, definition: Optional[Path] = None
+):
+    """Inspect partially filled score sheets without generating rankings."""
+    from deepeval.rubric_ops import scoring_progress
+
+    try:
+        typer.echo(
+            json.dumps(
+                scoring_progress(source, sheet=sheet, definition=definition),
+                ensure_ascii=False,
+            )
+        )
+    except (RubricValidationError, OSError) as exc:
+        typer.echo(f"Progress inspection failed: {exc}", err=True)
+        raise typer.Exit(2) from exc
+
+
 @app.command("manifest")
 def manifest_command(definition: Path, output: Path):
     """Generate expected keys from an independent rubric definition CSV."""

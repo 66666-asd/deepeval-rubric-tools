@@ -1,5 +1,13 @@
 # Local rubric workflow commands
 
+## Inspect scoring completion
+
+`deepeval rubric progress template.xlsx --sheet Scores --definition definitions.csv`
+
+Counts completed criteria/cases and missing score cells, with up to 50 missing
+keys. Blank scores remain unscored and zero is a valid score. Supplied values
+and metadata must still be valid; no source edits, rankings or imputed results.
+
 ## Generate an expected-key manifest
 
 `deepeval rubric manifest independent-definitions.csv expected.csv`

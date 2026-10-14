@@ -248,6 +248,66 @@ def create_manifest(definition, output):
     return len(rows)
 
 
+def scoring_progress(source, *, sheet=None, definition=None):
+    """Check partially filled scores without imputing scores or ranking models."""
+    from deepeval.rubric import (
+        _read_csv,
+        _read_jsonl,
+        _read_xlsx,
+        _score_records,
+        validate_rubric_definition,
+    )
+
+    suffix = Path(source).suffix.lower()
+    if sheet is not None and suffix != ".xlsx":
+        raise RubricValidationError("--sheet can only be used with XLSX input.")
+    if suffix == ".csv":
+        records = _read_csv(source)
+    elif suffix == ".xlsx":
+        records = _read_xlsx(source, sheet)
+    elif suffix == ".jsonl":
+        records = _read_jsonl(source)
+    else:
+        raise RubricValidationError("Unsupported progress input format.")
+    normalized, missing = [], []
+    complete_cases = {}
+    for line, record in records:
+        absent = [
+            column
+            for column in ("model_a_score", "model_b_score")
+            if not record[column]
+        ]
+        complete_cases[record["case_id"]] = (
+            complete_cases.get(record["case_id"], True) and not absent
+        )
+        if absent:
+            missing.append(
+                {
+                    "case_id": record["case_id"],
+                    "criterion_id": record["criterion_id"],
+                    "fields": absent,
+                }
+            )
+        # Zero is used ONLY to validate metadata and supplied values; no scores
+        # are persisted, returned, or used in comparison calculations.
+        normalized.append((line, {**record, **dict.fromkeys(absent, "0")}))
+    rows = _score_records(normalized)
+    if definition is not None:
+        validate_rubric_definition(rows, definition)
+    return {
+        "criterion_count": len(rows),
+        "completed_criteria": len(rows) - len(missing),
+        "case_count": len(complete_cases),
+        "completed_cases": sum(complete_cases.values()),
+        "missing_score_cells": sum(len(item["fields"]) for item in missing),
+        "missing_criteria": len(missing),
+        "missing_preview": missing[:50],
+        "definition_status": "matched"
+        if definition is not None
+        else "not_checked",
+    }
+
+
 def validate_score_file(path, *, sheet=None, manifest=None):
     """Validate input without computing model rankings or calling a judge."""
     rows = load_rubric_scores(path, sheet)

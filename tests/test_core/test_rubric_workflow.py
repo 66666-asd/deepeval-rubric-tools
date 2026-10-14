@@ -450,6 +450,32 @@ def test_manifest_generation_requires_independent_definitions(scores, tmp_path):
         create_manifest(definition, output)
 
 
+def test_progress_counts_missing_without_treating_zero_as_blank(tmp_path):
+    from deepeval.rubric_ops import scoring_progress
+
+    source = make_csv(
+        tmp_path / "partial.csv",
+        [
+            ["a", "r1", "A", 1, 4, 0, "", ""],
+            ["a", "r2", "B", 1, 4, "", "", ""],
+            ["b", "r1", "C", 1, 4, 0, 0, ""],
+        ],
+    )
+    original = source.read_bytes()
+    result = scoring_progress(source)
+    assert result["missing_score_cells"] == 3
+    assert result["completed_criteria"] == result["completed_cases"] == 1
+    assert "model_a_score" not in result
+    assert source.read_bytes() == original
+    with pytest.raises(RubricValidationError):
+        compare_rubric_file(source)
+    cli = CliRunner().invoke(app, ["rubric", "progress", str(source)])
+    assert cli.exit_code == 0, cli.output
+    make_csv(source, [["a", "r", "A", 1, 4, 5, "", ""]])
+    with pytest.raises(RubricValidationError):
+        scoring_progress(source)
+
+
 def make_csv(path, rows, headers=(*REQUIRED_COLUMNS, "notes")):
     with path.open("w", encoding="utf-8", newline="") as target:
         writer = csv.writer(target)
